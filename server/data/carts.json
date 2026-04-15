@@ -1,0 +1,38 @@
+{
+  "sess_full_features": {
+    "items": [
+      {
+        "id": "dish-002",
+        "name": "Street Pani Puri",
+        "price": 149,
+        "quantity": 1,
+        "image": "/assets/pani-puri.png"
+      }
+    ],
+    "offerCode": ""
+  },
+  "sess_detail_fix2": {
+    "items": [
+      {
+        "id": "dish-004",
+        "name": "Loaded Dahi Chaat",
+        "price": 169,
+        "quantity": 1,
+        "image": "/assets/dahi-chaat.jpg"
+      }
+    ],
+    "offerCode": ""
+  },
+  "sess_full_final": {
+    "items": [
+      {
+        "id": "dish-002",
+        "name": "Street Pani Puri",
+        "price": 149,
+        "quantity": 1,
+        "image": "/assets/pani-puri.png"
+      }
+    ],
+    "offerCode": ""
+  }
+}

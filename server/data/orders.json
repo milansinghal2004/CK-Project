@@ -1,0 +1,590 @@
+[
+  {
+    "id": "order-05e9d0e0",
+    "createdAt": "2026-04-02T04:57:11.826Z",
+    "customer": {
+      "name": "Test User",
+      "phone": "9999999999",
+      "address": "Test Address"
+    },
+    "paymentMode": "COD",
+    "items": [
+      {
+        "id": "dish-001",
+        "name": "Royal Pot Biryani",
+        "price": 329,
+        "quantity": 1,
+        "image": "/assets/feature-biryani.jpg"
+      }
+    ],
+    "pricing": {
+      "subtotal": 329,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 16,
+      "total": 384,
+      "appliedOffer": null
+    },
+    "sessionId": "sess_milan_fix"
+  },
+  {
+    "id": "order-bf92e8b5",
+    "createdAt": "2026-04-02T05:52:38.728Z",
+    "customer": {
+      "name": "Milan Singhal",
+      "phone": "06376889965",
+      "address": "16A, Bhagat Singh Marg, Nagori Gate circle"
+    },
+    "paymentMode": "UPI",
+    "items": [
+      {
+        "id": "dish-001",
+        "name": "Royal Pot Biryani",
+        "price": 329,
+        "quantity": 1,
+        "image": "/assets/feature-biryani.jpg"
+      }
+    ],
+    "pricing": {
+      "subtotal": 329,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 16,
+      "total": 384,
+      "appliedOffer": null
+    },
+    "sessionId": "sess_milan_fix",
+    "userId": "user-df889221"
+  },
+  {
+    "id": "order-916493fa",
+    "createdAt": "2026-04-02T05:57:56.612Z",
+    "customer": {
+      "name": "Order User",
+      "phone": "9999999999",
+      "address": "Sector 1"
+    },
+    "paymentMode": "UPI",
+    "items": [
+      {
+        "id": "dish-003",
+        "name": "Classic Samosa Basket",
+        "price": 129,
+        "quantity": 2,
+        "image": "/assets/samosa.png"
+      }
+    ],
+    "pricing": {
+      "subtotal": 258,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 13,
+      "total": 310,
+      "appliedOffer": null
+    },
+    "sessionId": "sess_milan_fix"
+  },
+  {
+    "id": "order-9a7a7251",
+    "sessionId": "sess_orders_abc",
+    "createdAt": "2026-04-02T05:58:29.635Z",
+    "customer": {
+      "name": "Order User",
+      "phone": "9999999999",
+      "address": "Sector 1"
+    },
+    "paymentMode": "UPI",
+    "etaMinutes": 32,
+    "items": [
+      {
+        "id": "dish-003",
+        "name": "Classic Samosa Basket",
+        "price": 129,
+        "quantity": 2,
+        "image": "/assets/samosa.png"
+      }
+    ],
+    "pricing": {
+      "subtotal": 258,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 13,
+      "total": 310,
+      "appliedOffer": null
+    }
+  },
+  {
+    "id": "order-12afc6a7",
+    "sessionId": "sess_verify_22",
+    "createdAt": "2026-04-02T05:58:51.826Z",
+    "customer": {
+      "name": "Verify User",
+      "phone": "9999999999",
+      "address": "Test"
+    },
+    "paymentMode": "COD",
+    "etaMinutes": 32,
+    "items": [
+      {
+        "id": "dish-001",
+        "name": "Royal Pot Biryani",
+        "price": 329,
+        "quantity": 1,
+        "image": "/assets/feature-biryani.jpg"
+      }
+    ],
+    "pricing": {
+      "subtotal": 329,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 16,
+      "total": 384,
+      "appliedOffer": null
+    }
+  },
+  {
+    "id": "order-d2fa6ab6",
+    "createdAt": "2026-04-02T06:00:40.607Z",
+    "customer": {
+      "name": "Milan Singhal",
+      "phone": "06376889965",
+      "address": "16A, Bhagat Singh Marg, Nagori Gate circle"
+    },
+    "paymentMode": "COD",
+    "items": [
+      {
+        "id": "dish-012",
+        "name": "Masala Fries",
+        "price": 139,
+        "quantity": 1,
+        "image": "/assets/fries.png"
+      }
+    ],
+    "pricing": {
+      "subtotal": 139,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 7,
+      "total": 185,
+      "appliedOffer": null
+    },
+    "sessionId": "sess_milan_fix",
+    "userId": "user-df889221",
+    "status": "Cancelled",
+    "cancelledAt": "2026-04-02T06:25:11.735Z",
+    "cancelReason": "Changed my mind",
+    "statusHistory": [
+      {
+        "status": "Confirmed",
+        "at": "2026-04-02T06:00:40.607Z"
+      },
+      {
+        "status": "Cancelled",
+        "at": "2026-04-02T06:25:11.735Z",
+        "note": "Changed my mind"
+      }
+    ]
+  },
+  {
+    "id": "order-63f1faa6",
+    "createdAt": "2026-04-02T06:04:14.506Z",
+    "customer": {
+      "name": "Milan Singhal",
+      "phone": "06376889965",
+      "address": "16A, Bhagat Singh Marg, Nagori Gate circle"
+    },
+    "paymentMode": "COD",
+    "items": [
+      {
+        "id": "dish-001",
+        "name": "Royal Pot Biryani",
+        "price": 329,
+        "quantity": 1,
+        "image": "/assets/feature-biryani.jpg"
+      },
+      {
+        "id": "dish-010",
+        "name": "Blueberry Smoothie",
+        "price": 189,
+        "quantity": 1,
+        "image": "/assets/blueberry-smoothie.png"
+      }
+    ],
+    "pricing": {
+      "subtotal": 518,
+      "discount": 130,
+      "deliveryFee": 39,
+      "tax": 19,
+      "total": 446,
+      "appliedOffer": "WEEKEND25"
+    },
+    "sessionId": "sess_other",
+    "userId": "user-xyz"
+  },
+  {
+    "id": "order-9850e564",
+    "sessionId": "sess_new_user",
+    "userId": "user-xyz",
+    "createdAt": "2026-04-02T06:07:18.692Z",
+    "customer": {
+      "name": "Milan Singhal",
+      "phone": "06376889965",
+      "address": "A"
+    },
+    "paymentMode": "COD",
+    "etaMinutes": 32,
+    "items": [
+      {
+        "id": "dish-001",
+        "name": "Royal Pot Biryani",
+        "price": 329,
+        "quantity": 1,
+        "image": "/assets/feature-biryani.jpg"
+      }
+    ],
+    "pricing": {
+      "subtotal": 329,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 16,
+      "total": 384,
+      "appliedOffer": null
+    }
+  },
+  {
+    "id": "order-1927ea89",
+    "sessionId": "sess_pjzzhl3qk",
+    "userId": "user-df889221",
+    "createdAt": "2026-04-02T06:08:30.276Z",
+    "customer": {
+      "name": "Milan Singhal",
+      "phone": "06376889965",
+      "address": "16A, Bhagat Singh Marg, Nagori Gate circle"
+    },
+    "paymentMode": "COD",
+    "etaMinutes": 32,
+    "items": [
+      {
+        "id": "dish-009",
+        "name": "Smoky Hakka Noodles",
+        "price": 249,
+        "quantity": 1,
+        "image": "/assets/noodles.png"
+      }
+    ],
+    "pricing": {
+      "subtotal": 249,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 12,
+      "total": 300,
+      "appliedOffer": null
+    }
+  },
+  {
+    "id": "order-81402073",
+    "sessionId": "sess_full_features",
+    "userId": "user-milan",
+    "createdAt": "2026-04-02T06:15:53.445Z",
+    "customer": {
+      "name": "Milan Singhal",
+      "phone": "06376889965",
+      "address": "Nagori Gate"
+    },
+    "paymentMode": "UPI",
+    "etaMinutes": 32,
+    "status": "Cancelled",
+    "statusHistory": [
+      {
+        "status": "Confirmed",
+        "at": "2026-04-02T06:15:53.445Z",
+        "note": "Order placed"
+      },
+      {
+        "status": "Cancelled",
+        "at": "2026-04-02T06:15:53.513Z",
+        "note": "Need to modify order"
+      }
+    ],
+    "items": [
+      {
+        "id": "dish-002",
+        "name": "Street Pani Puri",
+        "price": 149,
+        "quantity": 1,
+        "image": "/assets/pani-puri.png"
+      }
+    ],
+    "pricing": {
+      "subtotal": 149,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 7,
+      "total": 195,
+      "appliedOffer": null
+    },
+    "cancelledAt": "2026-04-02T06:15:53.513Z",
+    "cancelReason": "Need to modify order"
+  },
+  {
+    "id": "order-f837b298",
+    "sessionId": "sess_detail_test",
+    "userId": "user-abc",
+    "createdAt": "2026-04-02T06:16:38.952Z",
+    "customer": {
+      "name": "A",
+      "phone": "111",
+      "address": "Addr"
+    },
+    "paymentMode": "COD",
+    "etaMinutes": 32,
+    "status": "Confirmed",
+    "statusHistory": [
+      {
+        "status": "Confirmed",
+        "at": "2026-04-02T06:16:38.952Z",
+        "note": "Order placed"
+      }
+    ],
+    "items": [
+      {
+        "id": "dish-004",
+        "name": "Loaded Dahi Chaat",
+        "price": 169,
+        "quantity": 1,
+        "image": "/assets/dahi-chaat.jpg"
+      }
+    ],
+    "pricing": {
+      "subtotal": 169,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 8,
+      "total": 216,
+      "appliedOffer": null
+    }
+  },
+  {
+    "id": "order-aef88a95",
+    "sessionId": "sess_detail_fix2",
+    "userId": "user-abc",
+    "createdAt": "2026-04-02T06:17:38.028Z",
+    "customer": {
+      "name": "A",
+      "phone": "111",
+      "address": "Addr"
+    },
+    "paymentMode": "COD",
+    "etaMinutes": 32,
+    "status": "Cancelled",
+    "statusHistory": [
+      {
+        "status": "Confirmed",
+        "at": "2026-04-02T06:17:38.028Z",
+        "note": "Order placed"
+      },
+      {
+        "status": "Cancelled",
+        "at": "2026-04-02T06:17:38.098Z",
+        "note": "test cancel"
+      }
+    ],
+    "items": [
+      {
+        "id": "dish-004",
+        "name": "Loaded Dahi Chaat",
+        "price": 169,
+        "quantity": 1,
+        "image": "/assets/dahi-chaat.jpg"
+      }
+    ],
+    "pricing": {
+      "subtotal": 169,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 8,
+      "total": 216,
+      "appliedOffer": null
+    },
+    "cancelledAt": "2026-04-02T06:17:38.098Z",
+    "cancelReason": "test cancel"
+  },
+  {
+    "id": "order-383ef23e",
+    "sessionId": "sess_q",
+    "userId": "u1",
+    "createdAt": "2026-04-02T06:18:07.950Z",
+    "customer": {
+      "name": "A",
+      "phone": "111",
+      "address": "Addr"
+    },
+    "paymentMode": "COD",
+    "etaMinutes": 32,
+    "status": "Confirmed",
+    "statusHistory": [
+      {
+        "status": "Confirmed",
+        "at": "2026-04-02T06:18:07.950Z",
+        "note": "Order placed"
+      }
+    ],
+    "items": [
+      {
+        "id": "dish-001",
+        "name": "Royal Pot Biryani",
+        "price": 329,
+        "quantity": 1,
+        "image": "/assets/feature-biryani.jpg"
+      }
+    ],
+    "pricing": {
+      "subtotal": 329,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 16,
+      "total": 384,
+      "appliedOffer": null
+    }
+  },
+  {
+    "id": "order-03cf51ba",
+    "sessionId": "sess_full_final",
+    "userId": "user-final",
+    "createdAt": "2026-04-02T06:18:33.924Z",
+    "customer": {
+      "name": "Milan",
+      "phone": "06376889965",
+      "address": "Addr"
+    },
+    "paymentMode": "UPI",
+    "etaMinutes": 32,
+    "status": "Cancelled",
+    "statusHistory": [
+      {
+        "status": "Confirmed",
+        "at": "2026-04-02T06:18:33.924Z",
+        "note": "Order placed"
+      },
+      {
+        "status": "Cancelled",
+        "at": "2026-04-02T06:18:33.935Z",
+        "note": "Changed plan"
+      }
+    ],
+    "items": [
+      {
+        "id": "dish-002",
+        "name": "Street Pani Puri",
+        "price": 149,
+        "quantity": 1,
+        "image": "/assets/pani-puri.png"
+      }
+    ],
+    "pricing": {
+      "subtotal": 149,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 7,
+      "total": 195,
+      "appliedOffer": null
+    },
+    "cancelledAt": "2026-04-02T06:18:33.935Z",
+    "cancelReason": "Changed plan"
+  },
+  {
+    "id": "order-581e7108",
+    "sessionId": "sess_old_a",
+    "createdAt": "2026-04-02T06:23:24.360Z",
+    "customer": {
+      "name": "Milan",
+      "phone": "06376889965",
+      "address": "Addr"
+    },
+    "paymentMode": "COD",
+    "etaMinutes": 32,
+    "status": "Cancelled",
+    "statusHistory": [
+      {
+        "status": "Confirmed",
+        "at": "2026-04-02T06:23:24.360Z",
+        "note": "Order placed"
+      },
+      {
+        "status": "Cancelled",
+        "at": "2026-04-02T06:23:24.367Z",
+        "note": "manual cancel"
+      }
+    ],
+    "items": [
+      {
+        "id": "dish-001",
+        "name": "Royal Pot Biryani",
+        "price": 329,
+        "quantity": 1,
+        "image": "/assets/feature-biryani.jpg"
+      }
+    ],
+    "pricing": {
+      "subtotal": 329,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 16,
+      "total": 384,
+      "appliedOffer": null
+    },
+    "cancelledAt": "2026-04-02T06:23:24.367Z",
+    "cancelReason": "manual cancel",
+    "userId": "user-df889221"
+  },
+  {
+    "id": "order-1b0aeca7",
+    "sessionId": "sess_prod_capable",
+    "userId": "u-prod",
+    "createdAt": "2026-04-03T11:57:55.097Z",
+    "customer": {
+      "name": "Prod User",
+      "phone": "9000000000",
+      "address": "Main Road"
+    },
+    "paymentMode": "UPI",
+    "etaMinutes": 32,
+    "status": "Out for Delivery",
+    "statusHistory": [
+      {
+        "status": "Confirmed",
+        "at": "2026-04-03T11:57:55.097Z",
+        "note": "Order placed"
+      },
+      {
+        "status": "Payment Confirmed",
+        "at": "2026-04-03T11:57:55.109Z",
+        "note": "Ref: PAY-123"
+      },
+      {
+        "status": "Out for Delivery",
+        "at": "2026-04-03T11:57:55.113Z",
+        "note": "Rider assigned"
+      }
+    ],
+    "paymentStatus": "Paid",
+    "items": [
+      {
+        "id": "dish-006",
+        "name": "Chili Paneer Bites",
+        "price": 239,
+        "quantity": 1,
+        "image": "/assets/chili-paneer.png"
+      }
+    ],
+    "pricing": {
+      "subtotal": 239,
+      "discount": 0,
+      "deliveryFee": 39,
+      "tax": 12,
+      "total": 290,
+      "appliedOffer": null
+    },
+    "paymentRef": "PAY-123"
+  }
+]

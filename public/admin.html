@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CK Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/admin.css" />
+  </head>
+  <body>
+    <div class="site-bg"></div>
+    <header class="topbar">
+      <div class="topbar-inner container">
+        <a class="brand" href="/admin.html">
+          <img src="/assets/logo-ck.png" alt="CK logo" />
+          <div>
+            <strong>Cloud Kitchen Admin</strong>
+            <span>Kitchen Manager Panel</span>
+          </div>
+        </a>
+        <nav class="navlinks">
+          <a href="#overview">Overview</a>
+          <a href="#orders">Orders</a>
+          <a href="#chefs">Chefs</a>
+          <a href="#tickets">Tickets</a>
+        </nav>
+        <div class="topbar-actions">
+          <span id="adminUserBadge" class="chip">Manager</span>
+          <a class="btn subtle" href="/app.html">Customer Site</a>
+          <button id="adminLogoutBtn" class="btn subtle">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container admin-main">
+      <section class="section" id="overview">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Operations</p>
+            <h2>Kitchen Dashboard</h2>
+          </div>
+          <div class="admin-auth">
+            <button id="refreshAllBtn" class="btn accent">Refresh</button>
+          </div>
+        </div>
+        <div id="adminNotice" class="admin-notice"></div>
+        <div class="kpi-grid" id="kpiGrid"></div>
+      </section>
+
+      <section class="section" id="orders">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Live queue</p>
+            <h2>Order Control Room</h2>
+          </div>
+          <div class="order-filters">
+            <select id="orderStatusFilter">
+              <option value="">All statuses</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Preparing">Preparing</option>
+              <option value="Out for Delivery">Out for Delivery</option>
+              <option value="Delivered">Delivered</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <input id="orderSearchInput" type="search" placeholder="Search by order/customer/phone" />
+          </div>
+        </div>
+        <div id="adminOrdersGrid" class="admin-orders-grid"></div>
+      </section>
+
+      <section class="section" id="chefs">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Kitchen floor</p>
+            <h2>Chef Management</h2>
+          </div>
+        </div>
+        <div id="chefGrid" class="chef-grid"></div>
+      </section>
+
+      <section class="section" id="tickets">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Customer Support</p>
+            <h2>Support Inbox</h2>
+          </div>
+          <div class="order-filters">
+            <select id="ticketStatusFilter">
+              <option value="">All tickets</option>
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+            </select>
+            <input id="ticketSearchInput" type="search" placeholder="Search ticket/order/customer" />
+          </div>
+        </div>
+        <div id="ticketGrid" class="admin-orders-grid"></div>
+      </section>
+    </main>
+
+    <dialog id="adminOrderDialog">
+      <div class="dialog-card order-detail-card">
+        <div class="order-detail-head">
+          <h3 id="adminOrderDialogTitle">Order</h3>
+          <button id="closeAdminOrderDialogBtn" class="icon-btn">X</button>
+        </div>
+        <div id="adminOrderDialogBody"></div>
+      </div>
+    </dialog>
+
+    <script src="/admin.js" defer></script>
+  </body>
+</html>

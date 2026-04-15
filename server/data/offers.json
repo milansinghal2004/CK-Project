@@ -1,0 +1,26 @@
+[
+  {
+    "id": "offer-001",
+    "title": "Weekend Feast",
+    "description": "Flat 25% off on all Main Course dishes above Rs 499.",
+    "code": "WEEKEND25",
+    "discountPercent": 25,
+    "minOrderValue": 499
+  },
+  {
+    "id": "offer-002",
+    "title": "Starter Combo",
+    "description": "Buy 2 starters and get 1 beverage free.",
+    "code": "STARTSMART",
+    "discountPercent": 15,
+    "minOrderValue": 299
+  },
+  {
+    "id": "offer-003",
+    "title": "First Order",
+    "description": "New users get instant Rs 120 off.",
+    "code": "FIRSTBITE",
+    "discountFlat": 120,
+    "minOrderValue": 399
+  }
+]

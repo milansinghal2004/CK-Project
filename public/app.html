@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud Kitchen | CK</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="site-bg"></div>
+    <div id="liveNotice" class="live-notice"></div>
+    <header class="topbar">
+      <div class="topbar-inner container">
+        <a class="brand" href="#home">
+          <img src="/assets/logo-ck.png" alt="CK logo" />
+          <div>
+            <strong>Cloud Kitchen</strong>
+            <span>Startup Mode</span>
+          </div>
+        </a>
+        <nav id="navLinks" class="navlinks">
+          <a href="#menu">Menu</a>
+          <a href="#specials">Specials</a>
+          <a href="#orders">Orders</a>
+          <a href="#contact">Contact</a>
+        </nav>
+        <div class="topbar-actions">
+          <button id="ordersBtn" class="btn subtle">My Orders</button>
+          <button id="authBtn" class="btn subtle">Sign in</button>
+          <button id="cartBtn" class="btn accent">Cart <span id="cartCount">0</span></button>
+          <button id="menuBtn" class="menu-toggle" aria-label="Toggle menu">Menu</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="home" class="hero container">
+        <div class="hero-copy">
+          <p class="kicker">Fast delivery. Premium flavor.</p>
+          <h1>Freshly cooked food for every craving.</h1>
+          <p>
+            Built from your Figma references and fully connected end-to-end.
+            Browse, add to cart, apply offers, and place orders in one flow.
+          </p>
+          <div class="hero-actions">
+            <a class="btn accent" href="#menu">Order now</a>
+            <button class="btn subtle" id="openDealsBtn" type="button">See deals</button>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <img class="hero-bg" src="/assets/hero-bg.png" alt="Decorative food background" />
+          <img class="hero-main" src="/assets/hero-bowl.png" alt="Main dish" />
+        </div>
+      </section>
+
+      <section id="menu" class="section container">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Popular this week</p>
+            <h2>Menu</h2>
+          </div>
+          <div class="menu-tools">
+            <input id="searchInput" type="search" placeholder="Search dishes..." />
+            <select id="categorySelect"></select>
+          </div>
+        </div>
+        <div id="menuGrid" class="menu-grid"></div>
+      </section>
+
+      <section id="orders" class="section container">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Track your food</p>
+            <h2>Current & past orders</h2>
+          </div>
+          <button id="refreshOrdersBtn" class="btn subtle">Refresh</button>
+        </div>
+        <div class="orders-layout">
+          <div>
+            <h3>Current Orders</h3>
+            <div id="currentOrdersList" class="orders-list"></div>
+          </div>
+          <div>
+            <h3>Past Orders</h3>
+            <div id="pastOrdersList" class="orders-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="specials" class="section container">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Kitchen spotlight</p>
+            <h2>Chef's Studio</h2>
+          </div>
+        </div>
+        <div class="specials-layout">
+          <article class="chef-special-redesign">
+            <img src="/assets/feature-biryani.jpg" alt="Chef special dish" />
+            <div class="chef-content">
+              <p class="kicker">Chef's curated plate</p>
+              <h3>Royal Pot Biryani</h3>
+              <p>Layered saffron rice, roasted vegetables, and aromatic spices in our signature dum finish. Balanced heat, rich aroma, and quick delivery.</p>
+              <div class="special-meta">
+                <span>Prep: 26 mins</span>
+                <span>Rating: 4.8</span>
+                <span>Pure Veg</span>
+              </div>
+              <button class="btn accent" data-add-item="dish-001">Add to cart</button>
+            </div>
+          </article>
+          <article class="today-special-card">
+            <p class="kicker">Auto updates daily</p>
+            <h3 id="todaySpecialName">Today's Special</h3>
+            <p id="todaySpecialDesc">Loading today's recommended item...</p>
+            <div class="today-special-details">
+              <span id="todaySpecialPrice">Rs --</span>
+              <span id="todaySpecialCategory">Category --</span>
+            </div>
+            <div class="today-special-image-wrap">
+              <img id="todaySpecialImage" src="/assets/feature-biryani.jpg" alt="Today's special item" />
+            </div>
+            <button id="todaySpecialAddBtn" class="btn accent full">Add today's special</button>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer id="contact" class="footer container">
+      <div>
+        <strong>Cloud Kitchen</strong>
+        <p>Sector 17, Chandigarh</p>
+      </div>
+      <div>
+        <p>Open daily: 10:00 AM - 11:30 PM</p>
+        <p>Support: +91 98765 00000</p>
+      </div>
+    </footer>
+
+    <aside id="cartPanel" class="cart-panel">
+      <div class="cart-header">
+        <h3>Your Cart</h3>
+        <button id="closeCartBtn" class="icon-btn">X</button>
+      </div>
+      <div id="cartItems" class="cart-items"></div>
+      <div class="offer-row">
+        <input id="offerInput" type="text" placeholder="Apply offer code" />
+        <button id="applyOfferBtn" class="btn subtle">Apply</button>
+      </div>
+      <button id="availOffersBtn" class="btn subtle full" type="button">Avail Offers</button>
+      <div id="checkoutOffersWrap" class="checkout-offers-wrap" hidden>
+        <p class="checkout-offers-title">Available offers at checkout</p>
+        <div id="checkoutOfferGrid" class="checkout-offer-grid"></div>
+      </div>
+      <div id="cartPricing" class="cart-pricing"></div>
+      <button id="checkoutBtn" class="btn accent full">Checkout</button>
+    </aside>
+    <div id="backdrop" class="backdrop"></div>
+
+    <dialog id="authDialog">
+      <form id="authForm" method="dialog" class="dialog-card">
+        <h3>Sign in or create account</h3>
+        <div class="form-grid">
+          <label>
+            Name
+            <input id="authName" type="text" placeholder="Your name" />
+          </label>
+          <label>
+            Email
+            <input id="authEmail" type="email" placeholder="you@example.com" required />
+          </label>
+          <label>
+            Password
+            <input id="authPassword" type="password" placeholder="********" required />
+          </label>
+          <label>
+            Mode
+            <select id="authMode">
+              <option value="login">Login</option>
+              <option value="register">Register</option>
+            </select>
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn subtle" data-close-auth>Cancel</button>
+          <button type="submit" class="btn accent">Submit</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="checkoutDialog">
+      <form id="checkoutForm" method="dialog" class="dialog-card">
+        <h3>Checkout details</h3>
+        <div class="form-grid">
+          <label>
+            Full Name
+            <input id="orderName" required />
+          </label>
+          <label>
+            Phone
+            <input id="orderPhone" required />
+          </label>
+          <label class="full-span">
+            Address
+            <textarea id="orderAddress" rows="3" required></textarea>
+          </label>
+          <label>
+            Payment Mode
+            <select id="paymentMode">
+              <option value="COD">Cash on Delivery</option>
+              <option value="UPI">UPI</option>
+            </select>
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn subtle" data-close-checkout>Cancel</button>
+          <button type="submit" class="btn accent">Place order</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="orderDetailDialog">
+      <div class="dialog-card order-detail-card">
+        <div class="order-detail-head">
+          <h3 id="orderDetailTitle">Order details</h3>
+          <button id="closeOrderDetailBtn" class="icon-btn">X</button>
+        </div>
+        <div id="orderDetailBody"></div>
+      </div>
+    </dialog>
+
+    <template id="menuCardTemplate">
+      <article class="dish-card">
+        <img class="dish-image" alt="" />
+        <div class="dish-body">
+          <div class="dish-head">
+            <h4></h4>
+            <span class="rating"></span>
+          </div>
+          <p class="dish-desc"></p>
+          <div class="dish-meta">
+            <strong class="price"></strong>
+            <span class="prep"></span>
+          </div>
+          <button class="btn accent add-btn">Add to cart</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

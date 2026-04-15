@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud Kitchen | Welcome</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/landing.css" />
+  </head>
+  <body>
+    <div class="site-bg"></div>
+    <header class="topbar">
+      <div class="topbar-inner container">
+        <a class="brand" href="/">
+          <img src="/assets/logo-ck.png" alt="CK logo" />
+          <div>
+            <strong>Cloud Kitchen</strong>
+            <span>Startup Mode</span>
+          </div>
+        </a>
+      </div>
+    </header>
+
+    <main class="container landing-main">
+      <section class="landing-shell">
+        <article class="landing-showcase">
+          <p class="kicker">Unified Access</p>
+          <h1>Cloud Kitchen</h1>
+          <p>One elegant entry point for both customers and kitchen operations. Real-time orders, live status updates, and practical business-ready workflows.</p>
+          <div class="showcase-image-wrap">
+            <img src="/assets/hero-bg.png" alt="Cloud Kitchen ambience" />
+          </div>
+        </article>
+
+        <article class="login-surface">
+          <div class="login-grid">
+            <article class="login-card">
+              <h2>Customer Login</h2>
+              <p>Place, track, cancel, and reorder in one flow.</p>
+              <form id="consumerLoginForm" class="stack-form">
+                <input id="consumerEmail" type="text" placeholder="Registered email" required />
+                <input id="consumerPassword" type="password" placeholder="Password" required />
+                <div class="row-actions">
+                  <button type="submit" class="btn accent">Login</button>
+                  <button id="openRegisterBtn" type="button" class="btn subtle">Create Account</button>
+                </div>
+              </form>
+              <a class="btn subtle full" href="/customer-react/">Continue as Guest</a>
+            </article>
+
+            <article class="login-card admin-card">
+              <h2>Admin Access</h2>
+              <p>Kitchen manager login for orders, chefs, and status control.</p>
+              <form id="adminLoginForm" class="stack-form">
+                <input id="adminUsername" type="text" placeholder="Manager username" required />
+                <input id="adminPassword" type="password" placeholder="Manager password" required />
+                <button type="submit" class="btn accent">Admin Login</button>
+              </form>
+              <p class="small-note">Credentials come from <code>.env</code> via <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code>.</p>
+            </article>
+          </div>
+        </article>
+      </section>
+
+      <dialog id="registerDialog">
+        <form id="consumerRegisterForm" method="dialog" class="dialog-card">
+          <h3>Create Consumer Account</h3>
+          <div class="form-grid">
+            <label>
+              Name
+              <input id="registerName" required />
+            </label>
+            <label>
+              Email
+              <input id="registerEmail" type="email" required />
+            </label>
+            <label class="full-span">
+              Password
+              <input id="registerPassword" type="password" required />
+            </label>
+          </div>
+          <div class="dialog-actions">
+            <button type="button" id="closeRegisterBtn" class="btn subtle">Cancel</button>
+            <button type="submit" class="btn accent">Create</button>
+          </div>
+        </form>
+      </dialog>
+
+      <div id="landingNotice" class="landing-notice"></div>
+    </main>
+
+    <script src="/landing.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,149 @@
+.admin-main {
+  padding-bottom: 2.5rem;
+}
+
+.admin-auth {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-auth input {
+  min-width: 240px;
+}
+
+.admin-notice {
+  min-height: 1.3rem;
+  color: #365e2a;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.8rem;
+}
+
+.kpi-card {
+  border: 1px solid #f1dfcf;
+  border-radius: 14px;
+  background: #fff;
+  padding: 0.8rem;
+  box-shadow: var(--shadow);
+}
+
+.kpi-card p {
+  margin: 0.1rem 0;
+  color: var(--muted);
+}
+
+.kpi-card strong {
+  font-size: 1.35rem;
+}
+
+.order-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-orders-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.admin-order-card {
+  border: 1px solid #ead8c8;
+  border-radius: 14px;
+  background: #fff;
+  padding: 0.85rem;
+}
+
+.admin-order-card h4 {
+  margin: 0 0 0.35rem;
+}
+
+.admin-order-card p {
+  margin: 0.25rem 0;
+}
+
+.chip {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid #e8dacd;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #fff8f2;
+}
+
+.admin-order-actions {
+  margin-top: 0.65rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.admin-order-actions .btn {
+  padding: 0.42rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.admin-order-actions select {
+  min-width: 220px;
+}
+
+.chef-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.chef-card {
+  border: 1px solid #ebd9ca;
+  border-radius: 14px;
+  background: #fff;
+  padding: 0.8rem;
+}
+
+.chef-card h4 {
+  margin: 0 0 0.3rem;
+}
+
+.chef-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0.45rem 0;
+}
+
+.admin-modal-status-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+@media (max-width: 1100px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .chef-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-orders-grid {
+    grid-template-columns: 1fr;
+  }
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .chef-grid {
+    grid-template-columns: 1fr;
+  }
+}
