@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 const STATUS_OPTIONS = ["Confirmed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"];
+const VIEWS = {
+  TODAY: "today",
+  PAST_ORDERS: "past-orders",
+  PAST_TICKETS: "past-tickets"
+};
 
 export function AdminApp() {
   const [adminKey, setAdminKey] = useState(localStorage.getItem("ck_admin_key") || "");
@@ -23,9 +28,38 @@ export function AdminApp() {
   const [loginNotice, setLoginNotice] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [apiBase, setApiBase] = useState(window.location.origin);
+  const [view, setView] = useState(() => {
+    try {
+      const url = new URL(window.location.href);
+      const v = String(url.searchParams.get("view") || "").trim().toLowerCase();
+      if (v === VIEWS.PAST_ORDERS) return VIEWS.PAST_ORDERS;
+      if (v === VIEWS.PAST_TICKETS) return VIEWS.PAST_TICKETS;
+      return VIEWS.TODAY;
+    } catch {
+      return VIEWS.TODAY;
+    }
+  });
+  const [pastPreset, setPastPreset] = useState("last7");
+  const [pastFrom, setPastFrom] = useState("");
+  const [pastTo, setPastTo] = useState("");
 
   const onDutyChefs = useMemo(() => chefs.filter((c) => c.isOnDuty), [chefs]);
   const activeChefs = useMemo(() => chefs.filter((c) => c.isActive !== false), [chefs]);
+
+  const todaysOrders = useMemo(() => orders.filter((o) => isToday(o.createdAt)), [orders]);
+  const pastOrders = useMemo(() => orders.filter((o) => !isToday(o.createdAt)), [orders]);
+  const todaysTickets = useMemo(() => tickets.filter((t) => isToday(t.createdAt)), [tickets]);
+  const pastTickets = useMemo(() => tickets.filter((t) => !isToday(t.createdAt)), [tickets]);
+
+  const pastRange = useMemo(() => computePastRange(pastPreset, pastFrom, pastTo), [pastPreset, pastFrom, pastTo]);
+  const filteredPastOrders = useMemo(
+    () => pastOrders.filter((o) => isWithinRange(o.createdAt, pastRange)),
+    [pastOrders, pastRange]
+  );
+  const filteredPastTickets = useMemo(
+    () => pastTickets.filter((t) => isWithinRange(t.createdAt, pastRange)),
+    [pastTickets, pastRange]
+  );
 
   useEffect(() => {
     resolveApiBase();
@@ -42,6 +76,18 @@ export function AdminApp() {
     const timer = setInterval(refreshAll, 15000);
     return () => clearInterval(timer);
   }, [adminKey, apiBase, statusFilter, orderSearch, ticketStatus, ticketSearch]);
+
+  useEffect(() => {
+    // keep URL shareable without adding a full router
+    try {
+      const url = new URL(window.location.href);
+      if (view === VIEWS.TODAY) url.searchParams.delete("view");
+      else url.searchParams.set("view", view);
+      window.history.replaceState({}, "", url.toString());
+    } catch {
+      // no-op
+    }
+  }, [view]);
 
   useEffect(() => {
     if (!activeOrder) return;
@@ -347,10 +393,36 @@ export function AdminApp() {
             </div>
           </a>
           <nav className="navlinks">
-            <a href="#overview">Overview</a>
-            <a href="#orders">Orders</a>
-            <a href="#chefs">Chefs</a>
-            <a href="#tickets">Tickets</a>
+            <button
+              type="button"
+              className="btn subtle"
+              onClick={() => {
+                setView(VIEWS.TODAY);
+                document.getElementById("overview")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              className="btn subtle"
+              onClick={() => {
+                setView(VIEWS.PAST_ORDERS);
+                document.getElementById("past-orders")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              Past Orders
+            </button>
+            <button
+              type="button"
+              className="btn subtle"
+              onClick={() => {
+                setView(VIEWS.PAST_TICKETS);
+                document.getElementById("past-tickets")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              Past Tickets
+            </button>
           </nav>
           <div className="topbar-actions">
             <span className="chip">Manager: {adminUser || "manager"}</span>
@@ -365,7 +437,7 @@ export function AdminApp() {
           <div className="section-head">
             <div>
               <p className="kicker">Operations</p>
-              <h2>Kitchen Dashboard</h2>
+              <h2>{view === VIEWS.TODAY ? "Kitchen Dashboard (Today)" : "Kitchen Dashboard"}</h2>
             </div>
             <button className="btn accent" onClick={refreshAll}>Refresh</button>
           </div>
@@ -383,27 +455,97 @@ export function AdminApp() {
           </div>
         </section>
 
-        <section className="section" id="orders">
-          <div className="section-head">
-            <div>
-              <p className="kicker">Live queue</p>
-              <h2>Order Control Room</h2>
+        {view === VIEWS.TODAY ? (
+          <section className="section" id="orders">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Live queue</p>
+                <h2>Today’s Orders</h2>
+              </div>
+              <div className="order-filters">
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  <option value="">All statuses</option>
+                  {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
+                <input
+                  type="search"
+                  placeholder="Search by order/customer/phone"
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                />
+                <button className="btn subtle" type="button" onClick={() => setView(VIEWS.PAST_ORDERS)}>
+                  View past orders
+                </button>
+              </div>
             </div>
-            <div className="order-filters">
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="">All statuses</option>
-                {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
-              </select>
-              <input
-                type="search"
-                placeholder="Search by order/customer/phone"
-                value={orderSearch}
-                onChange={(e) => setOrderSearch(e.target.value)}
-              />
+            <div className="admin-orders-grid">
+              {!todaysOrders.length ? <p>No orders found for today.</p> : todaysOrders.map((order) => (
+                <article className="admin-order-card" key={order.id}>
+                  <h4>{order.id}</h4>
+                  <p><span className="chip">{order.status}</span> <span className="chip">{order.paymentStatus || "Pending"}</span></p>
+                  <p>{order.customerName} ({order.customerPhone})</p>
+                  <p>Total: Rs {order.total} | {fmt(order.createdAt)}</p>
+                  <p>Chef: {order.assignedChef?.name || "Not assigned"}</p>
+                  <p>Item assignments: {order.assignedItems || 0}/{order.totalItems || 0}</p>
+                  <div className="admin-order-actions">
+                    <button className="btn subtle" onClick={() => openOrder(order.id)}>Details</button>
+                    {order.paymentStatus === "Verification Pending" ? (
+                      <>
+                        <button className="btn subtle" onClick={() => verifyOrderPayment(order.id, true)}>Verify Payment</button>
+                        <button className="btn subtle" onClick={() => verifyOrderPayment(order.id, false)}>Reject Proof</button>
+                      </>
+                    ) : null}
+                    <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Preparing")}>Preparing</button>
+                    <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Out for Delivery")}>Out for Delivery</button>
+                    <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Delivered")}>Delivered</button>
+                  </div>
+                </article>
+              ))}
             </div>
-          </div>
-          <div className="admin-orders-grid">
-            {!orders.length ? <p>No orders found.</p> : orders.map((order) => (
+          </section>
+        ) : null}
+
+        {view === VIEWS.PAST_ORDERS ? (
+          <section className="section" id="past-orders">
+            <div className="section-head">
+              <div>
+                <p className="kicker">History</p>
+                <h2>Past Orders</h2>
+              </div>
+              <div className="order-filters">
+                <select value={pastPreset} onChange={(e) => setPastPreset(e.target.value)}>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="last7">Last 7 days</option>
+                  <option value="last30">Last 30 days</option>
+                  <option value="custom">Custom range</option>
+                </select>
+                <input
+                  type="date"
+                  value={pastFrom}
+                  onChange={(e) => setPastFrom(e.target.value)}
+                  disabled={pastPreset !== "custom"}
+                  title="From date"
+                />
+                <input
+                  type="date"
+                  value={pastTo}
+                  onChange={(e) => setPastTo(e.target.value)}
+                  disabled={pastPreset !== "custom"}
+                  title="To date"
+                />
+                <input
+                  type="search"
+                  placeholder="Search by order/customer/phone"
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                />
+                <button className="btn subtle" type="button" onClick={() => setView(VIEWS.TODAY)}>
+                  Back to today
+                </button>
+              </div>
+            </div>
+            <div className="admin-orders-grid">
+              {!filteredPastOrders.length ? <p>No past orders found for the selected range.</p> : filteredPastOrders.map((order) => (
               <article className="admin-order-card" key={order.id}>
                 <h4>{order.id}</h4>
                 <p><span className="chip">{order.status}</span> <span className="chip">{order.paymentStatus || "Pending"}</span></p>
@@ -413,22 +555,15 @@ export function AdminApp() {
                 <p>Item assignments: {order.assignedItems || 0}/{order.totalItems || 0}</p>
                 <div className="admin-order-actions">
                   <button className="btn subtle" onClick={() => openOrder(order.id)}>Details</button>
-                  {order.paymentStatus === "Verification Pending" ? (
-                    <>
-                      <button className="btn subtle" onClick={() => verifyOrderPayment(order.id, true)}>Verify Payment</button>
-                      <button className="btn subtle" onClick={() => verifyOrderPayment(order.id, false)}>Reject Proof</button>
-                    </>
-                  ) : null}
-                  <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Preparing")}>Preparing</button>
-                  <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Out for Delivery")}>Out for Delivery</button>
-                  <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Delivered")}>Delivered</button>
                 </div>
               </article>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
-        <section className="section" id="chefs">
+        {view === VIEWS.TODAY ? (
+          <section className="section" id="chefs">
           <div className="section-head"><div><p className="kicker">Kitchen floor</p><h2>Chef Management</h2></div></div>
           <div className="chef-grid">
             {!chefs.length ? <p>No chef records found.</p> : chefs.map((chef) => (
@@ -443,22 +578,89 @@ export function AdminApp() {
               </article>
             ))}
           </div>
-        </section>
+          </section>
+        ) : null}
 
-        <section className="section" id="tickets">
-          <div className="section-head">
-            <div><p className="kicker">Customer Support</p><h2>Support Inbox</h2></div>
-            <div className="order-filters">
-              <select value={ticketStatus} onChange={(e) => setTicketStatus(e.target.value)}>
-                <option value="">All tickets</option>
-                <option value="open">Open</option>
-                <option value="closed">Closed</option>
-              </select>
-              <input type="search" placeholder="Search ticket/order/customer" value={ticketSearch} onChange={(e) => setTicketSearch(e.target.value)} />
+        {view === VIEWS.TODAY ? (
+          <section className="section" id="tickets">
+            <div className="section-head">
+              <div><p className="kicker">Customer Support</p><h2>Today’s Tickets</h2></div>
+              <div className="order-filters">
+                <select value={ticketStatus} onChange={(e) => setTicketStatus(e.target.value)}>
+                  <option value="">All tickets</option>
+                  <option value="open">Open</option>
+                  <option value="closed">Closed</option>
+                </select>
+                <input type="search" placeholder="Search ticket/order/customer" value={ticketSearch} onChange={(e) => setTicketSearch(e.target.value)} />
+                <button className="btn subtle" type="button" onClick={() => setView(VIEWS.PAST_TICKETS)}>
+                  View past tickets
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="admin-orders-grid">
-            {!tickets.length ? <p>No tickets found.</p> : tickets.map((ticket) => (
+            <div className="admin-orders-grid">
+              {!todaysTickets.length ? <p>No tickets found for today.</p> : todaysTickets.map((ticket) => (
+                <article className="admin-order-card" key={ticket.id}>
+                  <h4>{ticket.id}</h4>
+                  <p><span className="chip">{ticket.status}</span></p>
+                  <p><strong>Order:</strong> {ticket.orderId}</p>
+                  <p><strong>Customer:</strong> {ticket.customerName} ({ticket.customerPhone})</p>
+                  <p><strong>Query:</strong> {ticket.message}</p>
+                  <div className="ticket-thread">
+                    {(ticket.replies || []).length ? (
+                      ticket.replies.map((reply, idx) => (
+                        <div className="ticket-reply" key={`${ticket.id}-${idx}`}>
+                          <strong>{reply.authorType === "admin" ? (reply.authorName || "Manager") : (reply.authorName || "Customer")}:</strong>
+                          <span>{reply.message}</span>
+                          <em>{fmt(reply.at)}</em>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="ticket-empty">No thread yet.</p>
+                    )}
+                  </div>
+                  <div className="admin-order-actions">
+                    <button className="btn subtle" onClick={() => replyTicket(ticket.id, false)}>Reply</button>
+                    <button className="btn subtle" disabled={ticket.status === "closed"} onClick={() => replyTicket(ticket.id, true)}>Mark Closed</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {view === VIEWS.PAST_TICKETS ? (
+          <section className="section" id="past-tickets">
+            <div className="section-head">
+              <div><p className="kicker">History</p><h2>Past Tickets</h2></div>
+              <div className="order-filters">
+                <select value={pastPreset} onChange={(e) => setPastPreset(e.target.value)}>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="last7">Last 7 days</option>
+                  <option value="last30">Last 30 days</option>
+                  <option value="custom">Custom range</option>
+                </select>
+                <input
+                  type="date"
+                  value={pastFrom}
+                  onChange={(e) => setPastFrom(e.target.value)}
+                  disabled={pastPreset !== "custom"}
+                  title="From date"
+                />
+                <input
+                  type="date"
+                  value={pastTo}
+                  onChange={(e) => setPastTo(e.target.value)}
+                  disabled={pastPreset !== "custom"}
+                  title="To date"
+                />
+                <input type="search" placeholder="Search ticket/order/customer" value={ticketSearch} onChange={(e) => setTicketSearch(e.target.value)} />
+                <button className="btn subtle" type="button" onClick={() => setView(VIEWS.TODAY)}>
+                  Back to today
+                </button>
+              </div>
+            </div>
+            <div className="admin-orders-grid">
+              {!filteredPastTickets.length ? <p>No past tickets found for the selected range.</p> : filteredPastTickets.map((ticket) => (
               <article className="admin-order-card" key={ticket.id}>
                 <h4>{ticket.id}</h4>
                 <p><span className="chip">{ticket.status}</span></p>
@@ -483,9 +685,10 @@ export function AdminApp() {
                   <button className="btn subtle" disabled={ticket.status === "closed"} onClick={() => replyTicket(ticket.id, true)}>Mark Closed</button>
                 </div>
               </article>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </main>
 
       {activeOrder ? (
@@ -578,5 +781,72 @@ function fmt(value) {
     return new Date(value).toLocaleString();
   } catch {
     return value;
+  }
+}
+
+function isToday(value) {
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return false;
+    const now = new Date();
+    return d.toDateString() === now.toDateString();
+  } catch {
+    return false;
+  }
+}
+
+function startOfDay(d) {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+function endOfDay(d) {
+  const out = new Date(d);
+  out.setHours(23, 59, 59, 999);
+  return out;
+}
+
+function parseDateInput(value) {
+  // value is YYYY-MM-DD from <input type="date">
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function computePastRange(preset, fromInput, toInput) {
+  const now = new Date();
+  if (preset === "yesterday") {
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    return { from: startOfDay(y), to: endOfDay(y) };
+  }
+  if (preset === "last30") {
+    const from = new Date(now);
+    from.setDate(from.getDate() - 29);
+    return { from: startOfDay(from), to: endOfDay(now) };
+  }
+  if (preset === "custom") {
+    const from = parseDateInput(fromInput);
+    const to = parseDateInput(toInput);
+    if (!from && !to) return { from: null, to: null };
+    return { from: from ? startOfDay(from) : null, to: to ? endOfDay(to) : null };
+  }
+  // default last7
+  const from = new Date(now);
+  from.setDate(from.getDate() - 6);
+  return { from: startOfDay(from), to: endOfDay(now) };
+}
+
+function isWithinRange(value, range) {
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return false;
+    const fromOk = range?.from ? d >= range.from : true;
+    const toOk = range?.to ? d <= range.to : true;
+    return fromOk && toOk;
+  } catch {
+    return false;
   }
 }
