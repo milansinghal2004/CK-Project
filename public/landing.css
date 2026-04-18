@@ -23,85 +23,26 @@
   background:
     radial-gradient(circle at top right, rgba(255, 187, 155, 0.4), transparent 35%),
     linear-gradient(160deg, #fffdfb 0%, #fff1e3 100%);
-  padding: 1.15rem 1.2rem;
+  padding: 0.95rem;
   display: flex;
   flex-direction: column;
   min-height: 100%;
 }
 
-.landing-showcase h1 {
-  font-family: "Playfair Display", serif;
-  font-size: clamp(1.95rem, 4vw, 3rem);
-  line-height: 1.02;
-  margin: 0.3rem 0 0.55rem;
-  max-width: 12ch;
+.showcase-image-wrap {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid #f1d6c1;
 }
 
-.hero-copy {
-  margin: 0;
-  color: var(--muted);
-  max-width: 52ch;
-  font-size: 0.96rem;
-  line-height: 1.6;
-}
-
-.hero-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  margin: 0.85rem 0 0.8rem;
-}
-
-.hero-badges span,
-.quick-grid span {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  border: 1px solid #efd6c4;
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--text);
-  padding: 0.5rem 0.8rem;
-  font-weight: 700;
-  font-size: 0.88rem;
-  box-shadow: 0 8px 18px rgba(110, 66, 30, 0.05);
-}
-
-.hero-tiles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.65rem;
-  margin: 0.15rem 0 0.75rem;
-}
-
-.hero-tiles.compact {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.hero-tiles article,
-.quick-strip {
-  border: 1px solid #efdfd2;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(8px);
-}
-
-.hero-tiles article {
-  padding: 0.8rem 0.85rem;
-}
-
-.hero-tiles strong,
-.quick-strip strong {
+.showcase-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
-  font-size: 0.92rem;
-  margin-bottom: 0.35rem;
-}
-
-.hero-tiles p,
-.quick-strip p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.55;
-  font-size: 0.86rem;
 }
 
 .login-surface {
@@ -118,11 +59,10 @@
 }
 
 .customer-panel {
-  grid-template-rows: auto auto;
+  grid-template-rows: 1fr;
 }
 
-.login-card,
-.quick-strip {
+.login-card {
   border: 1px solid #efdfd2;
   border-radius: 22px;
   padding: 0.95rem;
@@ -190,47 +130,6 @@
   white-space: nowrap;
 }
 
-.customer-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.65rem;
-  border-top: 1px solid #f0e0d1;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.text-btn {
-  border: 0;
-  background: transparent;
-  color: var(--accent-dark);
-  font-weight: 800;
-  padding: 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
-}
-
-.quick-strip {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  background: linear-gradient(145deg, #fff7ef 0%, #fffdfb 100%);
-}
-
-.compact-strip {
-  justify-content: center;
-}
-
-.quick-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
 .admin-portal-btn {
   padding-inline: 1rem;
 }
@@ -286,12 +185,6 @@ dialog::backdrop {
   line-height: 1;
 }
 
-@media (max-width: 1100px) {
-  .hero-tiles {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 980px) {
   .landing-shell {
     grid-template-columns: 1fr;
@@ -299,6 +192,9 @@ dialog::backdrop {
   .landing-main {
     height: auto;
     overflow: auto;
+  }
+  .showcase-image-wrap {
+    min-height: 220px;
   }
 }
 

@@ -4,7 +4,6 @@ const refs = {
   consumerPassword: document.getElementById("consumerPassword"),
   openRegisterBtn: document.getElementById("openRegisterBtn"),
   openAdminBtn: document.getElementById("openAdminBtn"),
-  openAdminBtnInline: document.getElementById("openAdminBtnInline"),
   registerDialog: document.getElementById("registerDialog"),
   consumerRegisterForm: document.getElementById("consumerRegisterForm"),
   registerName: document.getElementById("registerName"),
@@ -28,7 +27,6 @@ function wireEvents() {
   refs.closeRegisterBtn.addEventListener("click", () => refs.registerDialog.close());
   refs.consumerRegisterForm.addEventListener("submit", registerConsumer);
   refs.openAdminBtn.addEventListener("click", openAdminDialog);
-  refs.openAdminBtnInline.addEventListener("click", openAdminDialog);
   refs.closeAdminBtn.addEventListener("click", closeAdminDialog);
   refs.cancelAdminBtn.addEventListener("click", closeAdminDialog);
   refs.adminDialog.addEventListener("cancel", (event) => {
