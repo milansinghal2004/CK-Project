@@ -25,7 +25,7 @@ export function CustomerApp() {
   const [orderSupport, setOrderSupport] = useState([]);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login");
-  const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
+  const [authForm, setAuthForm] = useState({ username: "", password: "" });
   const [cancelDraft, setCancelDraft] = useState({ open: false, orderId: "", reason: "Changed my mind" });
   const [supportDraft, setSupportDraft] = useState("");
   const [updatedOrders, setUpdatedOrders] = useState({});
@@ -552,12 +552,12 @@ export function CustomerApp() {
     const data = await api(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: authForm.name || "", email: authForm.email || "", password: authForm.password || "" })
+      body: JSON.stringify({ username: authForm.username || "", password: authForm.password || "" })
     });
     setUser(data.user);
     localStorage.setItem("ck_user", JSON.stringify(data.user));
     setShowAuth(false);
-    setAuthForm({ name: "", email: "", password: "" });
+    setAuthForm({ username: "", password: "" });
     await loadOrders();
     flash(`${authMode} successful`);
   }
@@ -839,10 +839,11 @@ export function CustomerApp() {
                 <option value="login">Login</option>
                 <option value="register">Register</option>
               </select>
-              {authMode === "register" ? (
-                <input placeholder="Name" value={authForm.name} onChange={(e) => setAuthForm((p) => ({ ...p, name: e.target.value }))} />
-              ) : null}
-              <input placeholder="Email" value={authForm.email} onChange={(e) => setAuthForm((p) => ({ ...p, email: e.target.value }))} />
+              <input
+                placeholder="Username"
+                value={authForm.username}
+                onChange={(e) => setAuthForm((p) => ({ ...p, username: e.target.value }))}
+              />
               <input type="password" placeholder="Password" value={authForm.password} onChange={(e) => setAuthForm((p) => ({ ...p, password: e.target.value }))} />
               <button className="btn accent full" type="submit">Submit</button>
             </form>

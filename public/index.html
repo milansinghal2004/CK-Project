@@ -32,7 +32,10 @@
               <a href="#contact">CONTACT US</a>
             </nav>
 
-            <button id="openLoginBtn" type="button" class="hero-login-btn">LOGIN</button>
+            <div class="hero-actions">
+              <button id="openAdminBtn" type="button" class="hero-admin-btn">ADMIN LOGIN</button>
+              <button id="openLoginBtn" type="button" class="hero-login-btn">LOGIN</button>
+            </div>
           </header>
 
           <div class="hero-content">
@@ -77,9 +80,10 @@
               </div>
 
               <form id="signupForm" class="auth-form" novalidate>
-                <input id="registerName" type="text" placeholder="Username..." autocomplete="name" required />
-                <input id="registerEmail" type="email" placeholder="Email..." autocomplete="email" required />
-                <input id="registerPassword" type="password" placeholder="Password..." autocomplete="new-password" required />
+                <input id="registerUsername" type="text" placeholder="Username..." autocomplete="username" required />
+                <input id="registerPassword" type="password" placeholder="Password..." autocomplete="new-password" minlength="8" required />
+                <p class="password-note">Use 8+ characters with upper and lower case letters, a number, and a symbol.</p>
+                <p id="passwordStrength" class="password-strength" aria-live="polite">Password strength: -</p>
                 <button type="submit" class="auth-submit">CREATE ACCOUNT</button>
                 <p class="auth-switch">
                   Already have an account?
@@ -88,7 +92,7 @@
               </form>
 
               <form id="loginForm" class="auth-form is-hidden" novalidate>
-                <input id="consumerEmail" type="email" placeholder="Email..." autocomplete="email" required />
+                <input id="consumerUsername" type="text" placeholder="Username..." autocomplete="username" required />
                 <input id="consumerPassword" type="password" placeholder="Password..." autocomplete="current-password" required />
                 <button type="submit" class="auth-submit">LOGIN</button>
                 <p class="auth-switch">
@@ -100,6 +104,32 @@
           </div>
         </div>
       </section>
+
+      <dialog id="adminDialog">
+        <form id="adminLoginForm" class="dialog-card admin-dialog-card">
+          <div class="dialog-head">
+            <div>
+              <p class="kicker">Admin Portal</p>
+              <h3>Manager login</h3>
+            </div>
+            <button type="button" id="closeAdminBtn" class="icon-btn" aria-label="Close admin dialog">X</button>
+          </div>
+          <div class="form-grid">
+            <label>
+              Username
+              <input id="adminUsername" type="text" placeholder="Manager username" required />
+            </label>
+            <label>
+              Password
+              <input id="adminPassword" type="password" placeholder="Manager password" required />
+            </label>
+          </div>
+          <div class="dialog-actions">
+            <button type="button" id="cancelAdminBtn" class="btn subtle">Cancel</button>
+            <button type="submit" class="btn accent">Admin Login</button>
+          </div>
+        </form>
+      </dialog>
 
       <div id="landingNotice" class="landing-notice" aria-live="polite"></div>
     </main>

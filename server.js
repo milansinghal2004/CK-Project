@@ -404,6 +404,93 @@ async function handleApi(req, res, urlObj) {
     return sendJson(res, 200, { ok: true, tickets: [] });
   }
 
+  if (method === "GET" && pathname === "/api/admin/analytics") {
+    if (!isAdmin) return sendError(res, 401, "Invalid admin key.");
+    const fromRaw = String(urlObj.searchParams.get("from") || "").trim();
+    const toRaw = String(urlObj.searchParams.get("to") || "").trim();
+    const from = fromRaw ? new Date(fromRaw) : null;
+    const to = toRaw ? new Date(toRaw) : null;
+    if ((fromRaw && Number.isNaN(from?.getTime?.())) || (toRaw && Number.isNaN(to?.getTime?.()))) {
+      return sendError(res, 400, "Invalid from/to timestamp.");
+    }
+
+    const inRange = (iso) => {
+      try {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return false;
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const scoped = orders.map(enrichOrder).filter((o) => inRange(o.createdAt));
+    const revenue = scoped.reduce((sum, o) => sum + Number(o.pricing?.total || 0), 0);
+    const delivered = scoped.filter((o) => o.status === "Delivered").length;
+    const cancelled = scoped.filter((o) => o.status === "Cancelled").length;
+    const pendingPayments = scoped.filter((o) => String(o.paymentStatus || "").toLowerCase() === "pending").length;
+    const aov = scoped.length ? Math.round(revenue / scoped.length) : 0;
+
+    const paymentModeMap = new Map();
+    const hourlyMap = new Map();
+    const itemMap = new Map();
+    const customerMap = new Map();
+
+    for (const o of scoped) {
+      const mode = String(o.paymentMode || "").trim().toUpperCase() || "UNKNOWN";
+      paymentModeMap.set(mode, (paymentModeMap.get(mode) || 0) + 1);
+
+      const hr = (() => {
+        try {
+          return new Date(o.createdAt).getHours();
+        } catch {
+          return 0;
+        }
+      })();
+      hourlyMap.set(hr, (hourlyMap.get(hr) || 0) + 1);
+
+      const items = Array.isArray(o.items) ? o.items : [];
+      for (const it of items) {
+        const name = String(it.name || it.id || "Item");
+        const qty = Number(it.quantity || 0);
+        const rev = qty * Number(it.price || 0);
+        const prev = itemMap.get(name) || { name, qty: 0, revenue: 0 };
+        itemMap.set(name, { name, qty: prev.qty + qty, revenue: prev.revenue + rev });
+      }
+
+      const phone = String(o.customer?.phone || "");
+      const key = phone || o.id;
+      const prevC = customerMap.get(key) || { phone, name: String(o.customer?.name || ""), orders: 0, spend: 0 };
+      customerMap.set(key, {
+        ...prevC,
+        orders: prevC.orders + 1,
+        spend: prevC.spend + Number(o.pricing?.total || 0)
+      });
+    }
+
+    const paymentModes = [...paymentModeMap.entries()]
+      .map(([mode, count]) => ({ mode, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const hourly = Array.from({ length: 24 }, (_, hour) => ({ hour, count: hourlyMap.get(hour) || 0 }));
+
+    const topItems = [...itemMap.values()].sort((a, b) => b.qty - a.qty || b.revenue - a.revenue).slice(0, 20);
+    const topCustomers = [...customerMap.values()].sort((a, b) => b.orders - a.orders || b.spend - a.spend).slice(0, 20);
+
+    return sendJson(res, 200, {
+      ok: true,
+      range: { from: from ? from.toISOString() : "", to: to ? to.toISOString() : "" },
+      summary: { orders: scoped.length, revenue, aov, delivered, cancelled, pendingPayments },
+      statuses: [],
+      paymentModes,
+      hourly,
+      topItems,
+      topCustomers
+    });
+  }
+
   if (method === "GET" && pathname === "/api/cart") {
     const sessionId = String(urlObj.searchParams.get("sessionId") || "").trim();
     if (!sessionId) return sendError(res, 400, "sessionId is required.");

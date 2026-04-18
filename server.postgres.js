@@ -80,7 +80,62 @@ function parseBody(req) {
 }
 
 function hashPassword(plain) {
-  return crypto.createHash("sha256").update(plain).digest("hex");
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derived = crypto.scryptSync(String(plain), salt, 64).toString("hex");
+  return `scrypt$${salt}$${derived}`;
+}
+
+function verifyPassword(plain, stored) {
+  const value = String(stored || "");
+  if (!value) return false;
+  if (value.startsWith("scrypt$")) {
+    const [, salt, expected] = value.split("$");
+    if (!salt || !expected) return false;
+    const derived = crypto.scryptSync(String(plain), salt, 64).toString("hex");
+    try {
+      return crypto.timingSafeEqual(Buffer.from(derived, "hex"), Buffer.from(expected, "hex"));
+    } catch {
+      return derived === expected;
+    }
+  }
+  return value === crypto.createHash("sha256").update(String(plain)).digest("hex");
+}
+
+function normalizeUsername(value) {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function slugifyUsername(value) {
+  return normalizeUsername(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "")
+    .replace(/\.\.+/g, ".") || "user";
+}
+
+function validatePasswordStrength(password, username = "") {
+  const value = String(password || "");
+  const lower = value.toLowerCase();
+  const usernameLower = String(username || "").toLowerCase();
+  if (value.length < 8) return "Password must be at least 8 characters long.";
+  if (!/[a-z]/.test(value)) return "Password must include a lowercase letter.";
+  if (!/[A-Z]/.test(value)) return "Password must include an uppercase letter.";
+  if (!/[0-9]/.test(value)) return "Password must include a number.";
+  if (!/[^A-Za-z0-9]/.test(value)) return "Password must include a symbol.";
+  if (usernameLower && lower.includes(usernameLower.replace(/\s+/g, ""))) return "Password should not contain your username.";
+  return "";
+}
+
+async function generateUniqueEmail(baseUsername) {
+  const slug = slugifyUsername(baseUsername);
+  let attempt = 0;
+  while (attempt < 10) {
+    const email = attempt === 0 ? `${slug}@cloudkitchen.local` : `${slug}-${attempt}@cloudkitchen.local`;
+    const existing = await queryOne("SELECT id FROM users WHERE LOWER(email) = LOWER($1)", [email]);
+    if (!existing) return email;
+    attempt += 1;
+  }
+  return `${slug}-${Date.now()}@cloudkitchen.local`;
 }
 
 function makeId(prefix) {
@@ -762,24 +817,42 @@ async function handleApi(req, res, urlObj) {
 
   if (method === "POST" && pathname === "/api/auth/register") {
     const body = await parseBody(req);
-    const name = String(body.name || "").trim();
-    const email = String(body.email || "").trim().toLowerCase();
+    const username = normalizeUsername(body.username || body.name || "");
+    const emailInput = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
-    if (!name || !email || !password) return sendError(res, 400, "Name, email, and password are required.");
-    const existing = await queryOne("SELECT id FROM users WHERE email = $1", [email]);
+    if (!username || !password) return sendError(res, 400, "Username and password are required.");
+    const passwordError = validatePasswordStrength(password, username);
+    if (passwordError) return sendError(res, 400, passwordError);
+    const email = emailInput || await generateUniqueEmail(username);
+    const existing = await queryOne(
+      `SELECT id FROM users
+       WHERE LOWER(COALESCE(username, name)) = LOWER($1)
+          OR LOWER(email) = LOWER($2)`,
+      [username, email]
+    );
     if (existing) return sendError(res, 409, "User already exists.");
     const id = makeId("user");
-    await pool.query("INSERT INTO users (id, name, email, password_hash) VALUES ($1,$2,$3,$4)", [id, name, email, hashPassword(password)]);
-    return sendJson(res, 201, { ok: true, user: { id, name, email } });
+    await pool.query(
+      "INSERT INTO users (id, name, username, email, password_hash) VALUES ($1,$2,$3,$4,$5)",
+      [id, username, username, email, hashPassword(password)]
+    );
+    return sendJson(res, 201, { ok: true, user: { id, name: username, username, email } });
   }
 
   if (method === "POST" && pathname === "/api/auth/login") {
     const body = await parseBody(req);
-    const email = String(body.email || "").trim().toLowerCase();
+    const username = normalizeUsername(body.username || body.email || body.identifier || "");
     const password = String(body.password || "");
-    const user = await queryOne("SELECT id, name, email, password_hash FROM users WHERE email = $1", [email]);
-    if (!user || user.password_hash !== hashPassword(password)) return sendError(res, 401, "Invalid credentials.");
-    return sendJson(res, 200, { ok: true, user: { id: user.id, name: user.name, email: user.email } });
+    if (!username || !password) return sendError(res, 400, "Username and password are required.");
+    const user = await queryOne(
+      `SELECT id, name, username, email, password_hash
+       FROM users
+       WHERE LOWER(COALESCE(username, name)) = LOWER($1)
+          OR LOWER(email) = LOWER($1)`,
+      [username]
+    );
+    if (!user || !verifyPassword(password, user.password_hash)) return sendError(res, 401, "Invalid credentials.");
+    return sendJson(res, 200, { ok: true, user: { id: user.id, name: user.name || user.username || username, username: user.username || user.name || username, email: user.email } });
   }
 
   if (method === "POST" && pathname === "/api/admin/auth/login") {
