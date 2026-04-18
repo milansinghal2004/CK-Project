@@ -10,108 +10,98 @@
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/landing.css" />
   </head>
-  <body>
+  <body class="landing-page">
     <div class="site-bg"></div>
-    <header class="topbar">
-      <div class="topbar-inner container">
-        <a class="brand" href="/">
-          <img src="/assets/logo-ck.png" alt="CK logo" />
-          <div>
-            <strong>Cloud Kitchen</strong>
-            <span>Startup Mode</span>
-          </div>
-        </a>
-        <div class="topbar-actions">
-          <button id="openAdminBtn" type="button" class="btn subtle admin-portal-btn">Admin Portal</button>
-        </div>
-      </div>
-    </header>
 
-    <main class="container landing-main">
-      <section class="landing-shell">
-        <article class="landing-showcase">
-          <div class="showcase-image-wrap">
-            <img src="/assets/hero-bg.png" alt="Cloud Kitchen ambience" />
-          </div>
-        </article>
-
-        <article class="login-surface">
-          <div class="login-grid customer-panel">
-            <article class="login-card customer-card">
-              <div class="card-topline">
-                <div>
-                  <p class="kicker">Customer Login</p>
-                  <h2>Sign in to your kitchen account</h2>
-                </div>
-                <a class="guest-link" href="/customer-react/">Continue as Guest</a>
+    <main class="landing-stage" data-screen="hero">
+      <section id="heroView" class="frame hero-frame" aria-label="Landing page">
+        <div class="hero-shell">
+          <header class="hero-topbar">
+            <div class="hero-brand">
+              <img src="/assets/logo-ck.png" alt="Cloud Kitchen logo" />
+              <div class="hero-brand-copy">
+                <strong>Cloud Kitchen</strong>
+                <span>Startup Mode</span>
               </div>
-              <p>Use your account to track orders, save details, reorder quickly, and manage support conversations.</p>
-              <form id="consumerLoginForm" class="stack-form">
-                <input id="consumerEmail" type="text" placeholder="Registered email" autocomplete="email" required />
-                <input id="consumerPassword" type="password" placeholder="Password" autocomplete="current-password" required />
-                <div class="row-actions">
-                  <button type="submit" class="btn accent">Login</button>
-                  <button id="openRegisterBtn" type="button" class="btn subtle">Create Account</button>
-                </div>
-              </form>
-            </article>
+            </div>
+
+            <nav class="hero-nav" aria-label="Primary">
+              <a href="/">HOME</a>
+              <a href="#specials">SPECIALS</a>
+              <a href="#about">ABOUT US</a>
+              <a href="#contact">CONTACT US</a>
+            </nav>
+
+            <button id="openLoginBtn" type="button" class="hero-login-btn">LOGIN</button>
+          </header>
+
+          <div class="hero-content">
+            <div class="hero-copy">
+              <p class="hero-eyebrow">Welcome to our</p>
+              <h1>Cloud Kitchen</h1>
+              <p class="hero-text">
+                Experience the future of dining with our Cloud Kitchen. Enjoy a diverse menu crafted by expert chefs,
+                delivered straight to your door.
+              </p>
+
+              <div class="hero-categories" aria-label="Menu categories">
+                <span>Meal</span>
+                <span>Snacks</span>
+                <span>Beverages</span>
+                <span>Desserts</span>
+              </div>
+            </div>
+
+            <div class="hero-visual">
+              <img src="/assets/hero-bowl.png" alt="Signature Cloud Kitchen dish" />
+            </div>
           </div>
-        </article>
+        </div>
       </section>
 
-      <dialog id="adminDialog">
-        <form id="adminLoginForm" class="dialog-card admin-dialog-card">
-          <div class="dialog-head">
-            <div>
-              <p class="kicker">Admin Portal</p>
-              <h3>Manager login</h3>
+      <section id="authView" class="frame auth-frame is-hidden" aria-label="Login and signup">
+        <div class="auth-shell">
+          <div class="auth-image">
+            <img src="/assets/hero-bg.png" alt="Cloud Kitchen ambience" />
+          </div>
+
+          <div class="auth-panel">
+            <div class="auth-card">
+              <div class="auth-brand">
+                <img src="/assets/logo-ck.png" alt="Cloud Kitchen logo" />
+              </div>
+
+              <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+                <button id="signupTab" type="button" class="auth-tab is-active" data-auth-mode="signup">SIGN UP</button>
+                <button id="loginTab" type="button" class="auth-tab" data-auth-mode="login">LOGIN</button>
+              </div>
+
+              <form id="signupForm" class="auth-form" novalidate>
+                <input id="registerName" type="text" placeholder="Username..." autocomplete="name" required />
+                <input id="registerEmail" type="email" placeholder="Email..." autocomplete="email" required />
+                <input id="registerPassword" type="password" placeholder="Password..." autocomplete="new-password" required />
+                <button type="submit" class="auth-submit">CREATE ACCOUNT</button>
+                <p class="auth-switch">
+                  Already have an account?
+                  <button id="switchToLoginBtn" type="button">Login now</button>
+                </p>
+              </form>
+
+              <form id="loginForm" class="auth-form is-hidden" novalidate>
+                <input id="consumerEmail" type="email" placeholder="Email..." autocomplete="email" required />
+                <input id="consumerPassword" type="password" placeholder="Password..." autocomplete="current-password" required />
+                <button type="submit" class="auth-submit">LOGIN</button>
+                <p class="auth-switch">
+                  New here?
+                  <button id="switchToSignupBtn" type="button">Create account</button>
+                </p>
+              </form>
             </div>
-            <button type="button" id="closeAdminBtn" class="icon-btn" aria-label="Close admin dialog">X</button>
           </div>
-          <p class="dialog-copy">A discreet entry point for kitchen managers without distracting from the customer experience.</p>
-          <div class="form-grid">
-            <label>
-              Username
-              <input id="adminUsername" type="text" placeholder="Manager username" required />
-            </label>
-            <label>
-              Password
-              <input id="adminPassword" type="password" placeholder="Manager password" required />
-            </label>
-          </div>
-          <div class="dialog-actions">
-            <button type="button" id="cancelAdminBtn" class="btn subtle">Cancel</button>
-            <button type="submit" class="btn accent">Admin Login</button>
-          </div>
-          <p class="small-note">Credentials come from <code>.env</code> via <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code>.</p>
-        </form>
-      </dialog>
+        </div>
+      </section>
 
-      <dialog id="registerDialog">
-        <form id="consumerRegisterForm" method="dialog" class="dialog-card">
-          <h3>Create Consumer Account</h3>
-          <div class="form-grid">
-            <label>
-              Name
-              <input id="registerName" required />
-            </label>
-            <label>
-              Email
-              <input id="registerEmail" type="email" required />
-            </label>
-            <label class="full-span">
-              Password
-              <input id="registerPassword" type="password" required />
-            </label>
-          </div>
-          <div class="dialog-actions">
-            <button type="button" id="closeRegisterBtn" class="btn subtle">Cancel</button>
-            <button type="submit" class="btn accent">Create</button>
-          </div>
-        </form>
-      </dialog>
-
-      <div id="landingNotice" class="landing-notice"></div>
+      <div id="landingNotice" class="landing-notice" aria-live="polite"></div>
     </main>
 
     <script src="/landing.js" defer></script>

@@ -1,48 +1,68 @@
 const refs = {
-  consumerLoginForm: document.getElementById("consumerLoginForm"),
+  heroView: document.getElementById("heroView"),
+  authView: document.getElementById("authView"),
+  openLoginBtn: document.getElementById("openLoginBtn"),
+  signupTab: document.getElementById("signupTab"),
+  loginTab: document.getElementById("loginTab"),
+  switchToLoginBtn: document.getElementById("switchToLoginBtn"),
+  switchToSignupBtn: document.getElementById("switchToSignupBtn"),
+  loginForm: document.getElementById("loginForm"),
+  signupForm: document.getElementById("signupForm"),
   consumerEmail: document.getElementById("consumerEmail"),
   consumerPassword: document.getElementById("consumerPassword"),
-  openRegisterBtn: document.getElementById("openRegisterBtn"),
-  openAdminBtn: document.getElementById("openAdminBtn"),
-  registerDialog: document.getElementById("registerDialog"),
-  consumerRegisterForm: document.getElementById("consumerRegisterForm"),
   registerName: document.getElementById("registerName"),
   registerEmail: document.getElementById("registerEmail"),
   registerPassword: document.getElementById("registerPassword"),
-  closeRegisterBtn: document.getElementById("closeRegisterBtn"),
-  adminDialog: document.getElementById("adminDialog"),
-  adminLoginForm: document.getElementById("adminLoginForm"),
-  adminUsername: document.getElementById("adminUsername"),
-  adminPassword: document.getElementById("adminPassword"),
-  closeAdminBtn: document.getElementById("closeAdminBtn"),
-  cancelAdminBtn: document.getElementById("cancelAdminBtn"),
   landingNotice: document.getElementById("landingNotice")
 };
 
+let authMode = "signup";
+
 wireEvents();
+setAuthMode(authMode);
 
 function wireEvents() {
-  refs.consumerLoginForm.addEventListener("submit", loginConsumer);
-  refs.openRegisterBtn.addEventListener("click", () => refs.registerDialog.showModal());
-  refs.closeRegisterBtn.addEventListener("click", () => refs.registerDialog.close());
-  refs.consumerRegisterForm.addEventListener("submit", registerConsumer);
-  refs.openAdminBtn.addEventListener("click", openAdminDialog);
-  refs.closeAdminBtn.addEventListener("click", closeAdminDialog);
-  refs.cancelAdminBtn.addEventListener("click", closeAdminDialog);
-  refs.adminDialog.addEventListener("cancel", (event) => {
-    event.preventDefault();
-    closeAdminDialog();
-  });
-  refs.adminLoginForm.addEventListener("submit", loginAdmin);
+  refs.openLoginBtn.addEventListener("click", showAuthScreen);
+  refs.signupTab.addEventListener("click", () => setAuthMode("signup"));
+  refs.loginTab.addEventListener("click", () => setAuthMode("login"));
+  refs.switchToLoginBtn.addEventListener("click", () => setAuthMode("login"));
+  refs.switchToSignupBtn.addEventListener("click", () => setAuthMode("signup"));
+  refs.loginForm.addEventListener("submit", loginConsumer);
+  refs.signupForm.addEventListener("submit", registerConsumer);
+  window.addEventListener("keydown", handleKeydown);
 }
 
-function openAdminDialog() {
-  if (!refs.adminDialog.open) refs.adminDialog.showModal();
-  refs.adminUsername.focus();
+function showAuthScreen() {
+  refs.heroView.classList.add("is-hidden");
+  refs.authView.classList.remove("is-hidden");
+  setAuthMode("signup");
 }
 
-function closeAdminDialog() {
-  if (refs.adminDialog.open) refs.adminDialog.close();
+function showHeroScreen() {
+  refs.authView.classList.add("is-hidden");
+  refs.heroView.classList.remove("is-hidden");
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const isLogin = mode === "login";
+  refs.signupTab.classList.toggle("is-active", !isLogin);
+  refs.loginTab.classList.toggle("is-active", isLogin);
+  refs.signupForm.classList.toggle("is-hidden", isLogin);
+  refs.loginForm.classList.toggle("is-hidden", !isLogin);
+  refs.landingNotice.textContent = "";
+  if (isLogin) {
+    refs.consumerEmail.focus();
+  } else {
+    refs.registerName.focus();
+  }
+}
+
+function handleKeydown(event) {
+  if (event.key === "Escape" && !refs.heroView.classList.contains("is-hidden")) return;
+  if (event.key === "Escape" && !refs.authView.classList.contains("is-hidden")) {
+    showHeroScreen();
+  }
 }
 
 async function loginConsumer(event) {
@@ -94,35 +114,8 @@ async function registerConsumer(event) {
   }
   if (!res.ok) return showNotice(data.message || "Registration failed.");
   localStorage.setItem("ck_user", JSON.stringify(data.user));
-  refs.registerDialog.close();
   showNotice("Account created. Redirecting to customer app...");
   window.location.href = "/customer-react/";
-}
-
-async function loginAdmin(event) {
-  event.preventDefault();
-  const payload = {
-    username: refs.adminUsername.value.trim(),
-    password: refs.adminPassword.value
-  };
-  let res;
-  let data;
-  try {
-    res = await fetch("/api/admin/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    data = await res.json();
-  } catch {
-    return showNotice("Unable to reach server. Please retry.");
-  }
-  if (!res.ok) return showNotice(data.message || "Admin login failed.");
-  localStorage.setItem("ck_admin_key", data.adminKey);
-  localStorage.setItem("ck_admin_user", data.admin.username);
-  showNotice("Admin login successful. Redirecting...");
-  closeAdminDialog();
-  window.location.href = "/admin-react/";
 }
 
 function showNotice(message) {
