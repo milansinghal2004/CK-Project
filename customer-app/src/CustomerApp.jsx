@@ -41,6 +41,8 @@ function CustomSelect({ value, onChange, options, className }) {
 }
 
 export function CustomerApp() {
+  const [showFullTimeline, setShowFullTimeline] = useState(false);
+  const [upiDrafts, setUpiDrafts] = useState({});
   const [apiBase, setApiBase] = useState(window.location.origin);
   const [notice, setNotice] = useState("");
   const [menu, setMenu] = useState([]);
@@ -738,15 +740,15 @@ export function CustomerApp() {
     flash(`Support ticket created: ${data.ticketId}`);
   }
 
-  async function submitSupportReply(ticketId, orderId) {
-    const message = (replyDrafts[ticketId] || "").trim();
+  async function submitSupportReply(ticketId, orderId, overrideMsg = null) {
+    const message = (overrideMsg || replyDrafts[ticketId] || "").trim();
     if (!message) return;
     await api(`/api/support/tickets/${ticketId}/replies`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, authorName: user?.name || "Customer" })
     });
-    setReplyDrafts(p => ({ ...p, [ticketId]: "" }));
+    if (!overrideMsg) setReplyDrafts(p => ({ ...p, [ticketId]: "" }));
     await loadSupport(orderId);
     flash("Reply sent");
   }
@@ -1186,12 +1188,17 @@ export function CustomerApp() {
             <div className="detail">
               <strong>Status Timeline</strong>
               <ul>
-                {(selectedOrder.statusHistory || []).map((entry, idx) => (
+                {(selectedOrder.statusHistory || []).slice(0, showFullTimeline ? undefined : 3).map((entry, idx) => (
                   <li key={`${entry.status}-${idx}`}>
                     <strong>{entry.status}</strong> - {new Date(entry.at).toLocaleString()}{entry.note ? ` (${entry.note})` : ""}
                   </li>
                 ))}
               </ul>
+              {(selectedOrder.statusHistory || []).length > 3 && (
+                <button className="btn subtle small" onClick={() => setShowFullTimeline(!showFullTimeline)}>
+                  {showFullTimeline ? "Show less" : `+ ${(selectedOrder.statusHistory.length - 3)} more updates`}
+                </button>
+              )}
             </div>
             <div className="detail">
               <strong>Payment Attempts</strong>
@@ -1229,6 +1236,27 @@ export function CustomerApp() {
                           </div>
                         ))}
                       </div>
+                      {/* UPI Refund Form Injection */}
+                      {[ticket.message, ...(ticket.replies || []).map(r => r.message)].some(m => String(m).includes("[ACTION:PROVIDE_UPI_FOR_REFUND]")) && (
+                        <div className="upi-refund-form" style={{ background: "rgba(245, 158, 11, 0.1)", padding: "1rem", borderRadius: "1rem", margin: "0.5rem 0", border: "1px dashed #f59e0b" }}>
+                          <p style={{ margin: 0, fontWeight: 600, color: "#92400e", fontSize: "0.9rem" }}>🏦 Refund Registration Required</p>
+                          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                            <input 
+                              placeholder="Enter UPI ID (e.g. name@upi)" 
+                              style={{ flex: 1, padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #d1d5db" }}
+                              value={upiDrafts[ticket.id] || ""}
+                              onChange={(e) => setUpiDrafts(p => ({ ...p, [ticket.id]: e.target.value }))}
+                            />
+                            <button className="btn accent small" onClick={() => {
+                              const upi = upiDrafts[ticket.id];
+                              if (!upi) return;
+                              setReplyDrafts(p => ({ ...p, [ticket.id]: `[UPI_REFUND_SUBMISSION]: ${upi}` }));
+                              submitSupportReply(ticket.id, selectedOrder.id, `[UPI_REFUND_SUBMISSION]: ${upi}`);
+                              setUpiDrafts(p => ({ ...p, [ticket.id]: "" }));
+                            }}>Submit</button>
+                          </div>
+                        </div>
+                      )}
                       {ticket.status === "open" && (
                         <div className="ticket-reply-box">
                           <textarea 
@@ -1422,8 +1450,7 @@ function ProfilePage({ user, setUser, api, flash }) {
               onChange={(e) => setForm({ ...form, defaultPaymentMode: e.target.value })}
               options={[
                 { value: "COD", label: "Cash on Delivery" },
-                { value: "UPI", label: "UPI (Online)" },
-                { value: "CARD", label: "Card (Online)" }
+                { value: "UPI", label: "UPI (Online)" }
               ]}
             />
           </div>
@@ -1901,8 +1928,7 @@ function CartBody({ cart, apiBase, updateQty, offerCode, setOfferCode, applyOffe
             onChange={(e) => setCheckout((c) => ({ ...c, paymentMode: e.target.value }))}
             options={[
               { value: "COD", label: "Cash on Delivery" },
-              { value: "UPI", label: "UPI (Online)" },
-              { value: "CARD", label: "Card (Online)" }
+              { value: "UPI", label: "UPI (Online)" }
             ]}
           />
         </div>

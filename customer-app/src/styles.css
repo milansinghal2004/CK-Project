@@ -2599,6 +2599,13 @@ dialog::backdrop {
     white-space: nowrap;
   }
 
+  .menu-sidebar-sticky.collapsed .sidebar-item {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 0;
+  }
+
   .sidebar-item:hover {
     background: #fdf2f2;
     color: #ef4444;

@@ -272,6 +272,33 @@ export function AdminApp() {
     }
   }
 
+  async function requestUpiForRefund(order) {
+    try {
+      const tickets = await api(`/api/admin/orders/${order.id}/tickets`);
+      let ticketId;
+      if (tickets.length) {
+        ticketId = tickets[0].id;
+      } else {
+        const newTicket = await api("/api/support/tickets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: order.id, message: "System initiated refund request." })
+        });
+        ticketId = newTicket.ticketId;
+      }
+
+      await api(`/api/support/tickets/${ticketId}/replies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "[ACTION:PROVIDE_UPI_FOR_REFUND] Please provide your UPI ID here to receive your refund.", authorName: "Manager" })
+      });
+      
+      alert("Refund request sent to customer via support thread.");
+    } catch (e) {
+      alert("Failed to initiate refund request: " + e.message);
+    }
+  }
+
   async function updateOrderStatus(orderId, status, note = "Updated by manager dashboard") {
     try {
       await api(`/api/admin/orders/${orderId}/status`, {
@@ -347,6 +374,7 @@ export function AdminApp() {
       setNotice(error.message || "Chef update failed.");
     }
   }
+
 
   async function replyTicket(ticketId, closeTicket) {
     const message = prompt(
@@ -567,8 +595,16 @@ export function AdminApp() {
                     <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Out for Delivery")}>Out for Delivery</button>
                     <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Delivered")}>Delivered</button>
                   </div>
-                  {order.status === "Cancelled" && order.paymentStatus === "Paid" && String(order.paymentMode || "").toUpperCase() !== "COD" && (
-                    <div className="refund-alert">⚠️ REFUND/REVOKE ACTION REQUIRED</div>
+                  {order.status === "Cancelled" && order.paymentStatus === "Paid" && (
+                    <div className="refund-alert">
+                      ⚠️ REFUND/REVOKE ACTION REQUIRED
+                      <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", justifyContent: "center" }}>
+                        <button className="btn small accent" onClick={() => requestUpiForRefund(order)}>Request UPI for Refund</button>
+                        {String(order.paymentMode).toUpperCase() !== "COD" && (
+                           <button className="btn small subtle" onClick={() => alert("Marked internally as 'Processing UPI Refund'. Please check your UPI merchant dashboard.")}>Mark Refunded</button>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </article>
               ))}
@@ -627,8 +663,13 @@ export function AdminApp() {
                 <div className="admin-order-actions">
                   <button className="btn subtle" onClick={() => openOrder(order.id)}>Details</button>
                 </div>
-                {order.status === "Cancelled" && order.paymentStatus === "Paid" && String(order.paymentMode || "").toUpperCase() !== "COD" && (
-                  <div className="refund-alert">⚠️ REFUND/REVOKE ACTION REQUIRED</div>
+                {order.status === "Cancelled" && order.paymentStatus === "Paid" && (
+                  <div className="refund-alert">
+                    ⚠️ REFUND/REVOKE ACTION REQUIRED
+                    <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", justifyContent: "center" }}>
+                      <button className="btn small accent" onClick={() => requestUpiForRefund(order)}>Request UPI for Refund</button>
+                    </div>
+                  </div>
                 )}
               </article>
               ))}
