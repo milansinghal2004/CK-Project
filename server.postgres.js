@@ -832,14 +832,16 @@ async function handleApi(req, res, urlObj) {
   if (method === "POST" && pathname === "/api/auth/register") {
     const body = await parseBody(req);
     const displayName = String(body.name || body.username || "").trim();
-    const username = normalizeUsername(body.username || body.name || "");
+    let username = normalizeUsername(body.username || body.name || "");
+
     const emailInput = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
 
     if (!password) return sendError(res, 400, "Password is required.");
     
     // Ensure we have a valid username
-    const username = await ensureUniqueUsername(body.username || body.name || emailInput.split("@")[0] || "user");
+    username = await ensureUniqueUsername(body.username || body.name || emailInput.split("@")[0] || "user");
+
     
     const passwordError = validatePasswordStrength(password, username);
     if (passwordError) return sendError(res, 400, passwordError);
