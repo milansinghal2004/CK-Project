@@ -1711,6 +1711,7 @@ async function handleApi(req, res, urlObj) {
     return sendJson(res, 200, { ok: true, order: dto, paymentStatus: "Pending" });
   }
 
+
   if (method === "POST" && pathname.startsWith("/api/admin/orders/") && pathname.endsWith("/payment-status")) {
     if (!isAdminAuthorized(req)) return sendError(res, 401, "Invalid admin key.");
     const parts = pathname.split("/").filter(Boolean);
@@ -1743,6 +1744,28 @@ async function handleApi(req, res, urlObj) {
     if (order.session_id) emitRealtimeUpdate(order.session_id, "order_updated", { orderId, paymentStatus });
     const dto = await fetchOrderWithDetails(orderId);
     return sendJson(res, 200, { ok: true, order: dto, paymentStatus, paymentRef: paymentRef || "" });
+  }
+
+  if (method === "POST" && pathname.startsWith("/api/admin/orders/") && pathname.endsWith("/mark-refunded")) {
+    if (!isAdminAuthorized(req)) return sendError(res, 401, "Invalid admin key.");
+    const parts = pathname.split("/").filter(Boolean);
+    const orderId = parts[3] || "";
+    const body = await parseBody(req);
+    const refundRef = String(body.refundRef || "").trim();
+    if (!orderId) return sendError(res, 400, "orderId is required.");
+    if (!refundRef) return sendError(res, 400, "Refund Transaction ID is required.");
+
+    const order = await queryOne("SELECT * FROM orders WHERE id = $1", [orderId]);
+    if (!order) return sendError(res, 404, "Order not found.");
+
+    await pool.query("UPDATE orders SET payment_status = 'Refunded', payment_ref = $2 WHERE id = $1", [orderId, refundRef]);
+    await pool.query("INSERT INTO order_status_history (order_id, status, note) VALUES ($1, 'Refunded', $2)", [
+      orderId, `Refunded by manager. Transaction ID: ${refundRef}`
+    ]);
+    
+    if (order.session_id) emitRealtimeUpdate(order.session_id, "order_updated", { orderId, paymentStatus: 'Refunded' });
+    const dto = await fetchOrderWithDetails(orderId);
+    return sendJson(res, 200, { ok: true, order: dto });
   }
 
   if (method === "GET" && pathname === "/api/admin/analytics") {

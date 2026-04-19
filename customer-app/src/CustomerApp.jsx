@@ -1200,13 +1200,25 @@ export function CustomerApp() {
                 </button>
               )}
             </div>
+
+            {selectedOrder.paymentStatus === "Refunded" && selectedOrder.paymentRef && (
+              <div className="detail refund-id-box" style={{ background: "rgba(59, 130, 246, 0.1)", padding: "1rem", borderRadius: "1rem", border: "1px solid #3b82f6", marginBottom: "1rem" }}>
+                <strong style={{ color: "#1d4ed8" }}>Refund Transaction ID</strong>
+                <p style={{ margin: "0.25rem 0 0", fontFamily: "monospace", fontSize: "1.1rem" }}>{selectedOrder.paymentRef}</p>
+              </div>
+            )}
+
             <div className="detail">
               <strong>Payment Attempts</strong>
+              <span className={`chip ${selectedOrder.paymentStatus === "Paid" ? "success" : selectedOrder.paymentStatus === "Refunded" ? "refunded" : "pending"}`}>
+                {selectedOrder.paymentStatus || "Verification Pending"}
+              </span>
               <ul>
                 {(selectedOrder.paymentTransactions || []).length ? (
                   (selectedOrder.paymentTransactions || []).map((txn) => (
                     <li key={txn.id}>
                       <strong>{txn.provider?.toUpperCase() || "N/A"}</strong> - {txn.status} | Rs {txn.amount} {txn.currency} | {new Date(txn.createdAt).toLocaleString()}
+                      {txn.refundId && <div className="refund-id">Refund ID: {txn.refundId}</div>}
                     </li>
                   ))
                 ) : (

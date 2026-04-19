@@ -274,7 +274,9 @@ export function AdminApp() {
 
   async function requestUpiForRefund(order) {
     try {
-      const tickets = await api(`/api/admin/orders/${order.id}/tickets`);
+      // Corrected ticket lookup to use admin search endpoint
+      const data = await api(`/api/admin/tickets?search=${order.id}`);
+      const tickets = data.tickets || [];
       let ticketId;
       if (tickets.length) {
         ticketId = tickets[0].id;
@@ -296,6 +298,23 @@ export function AdminApp() {
       alert("Refund request sent to customer via support thread.");
     } catch (e) {
       alert("Failed to initiate refund request: " + e.message);
+    }
+  }
+
+  async function markOrderRefunded(orderId) {
+    const refundRef = prompt("Enter Refund Transaction/Reference ID:");
+    if (!refundRef) return;
+    try {
+      await api(`/api/admin/orders/${orderId}/mark-refunded`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refundRef })
+      });
+      alert(`Order ${orderId} marked as Refunded.`);
+      refreshAll();
+      if (activeOrder?.id === orderId) openOrder(orderId);
+    } catch (e) {
+      alert("Failed to mark as refunded: " + e.message);
     }
   }
 
@@ -601,7 +620,7 @@ export function AdminApp() {
                       <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", justifyContent: "center" }}>
                         <button className="btn small accent" onClick={() => requestUpiForRefund(order)}>Request UPI for Refund</button>
                         {String(order.paymentMode).toUpperCase() !== "COD" && (
-                           <button className="btn small subtle" onClick={() => alert("Marked internally as 'Processing UPI Refund'. Please check your UPI merchant dashboard.")}>Mark Refunded</button>
+                           <button className="btn small subtle" onClick={() => markOrderRefunded(order.id)}>Mark Refunded</button>
                         )}
                       </div>
                     </div>
@@ -668,6 +687,7 @@ export function AdminApp() {
                     ⚠️ REFUND/REVOKE ACTION REQUIRED
                     <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", justifyContent: "center" }}>
                       <button className="btn small accent" onClick={() => requestUpiForRefund(order)}>Request UPI for Refund</button>
+                      <button className="btn small subtle" onClick={() => markOrderRefunded(order.id)}>Mark Refunded</button>
                     </div>
                   </div>
                 )}
