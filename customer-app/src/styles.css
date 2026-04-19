@@ -1890,7 +1890,8 @@ dialog::backdrop {
   overflow-x: scroll;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
-  padding: 3rem 2rem 2rem;
+  padding: 5rem 2rem 2rem;
+  margin-top: -3rem; /* Offset the extra top padding */
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -2165,6 +2166,31 @@ dialog::backdrop {
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(0);
+}
+
+/* Edge Case: Prevent clipping for first and last items in the horizontal shelf */
+.shelf-item:first-child .sq-tooltip {
+  left: 0;
+  transform: translateX(0) translateY(5px);
+}
+.shelf-item:first-child .sq-tooltip::after {
+  left: 20px;
+}
+.shelf-item:first-child .sq-avatar-wrap:hover .sq-tooltip {
+  transform: translateX(0) translateY(0);
+}
+
+.shelf-item:last-child .sq-tooltip {
+  left: auto;
+  right: 0;
+  transform: translateX(0) translateY(5px);
+}
+.shelf-item:last-child .sq-tooltip::after {
+  left: auto;
+  right: 20px;
+}
+.shelf-item:last-child .sq-avatar-wrap:hover .sq-tooltip {
+  transform: translateX(0) translateY(0);
 }
 
 
