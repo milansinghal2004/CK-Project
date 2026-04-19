@@ -1955,18 +1955,20 @@ dialog::backdrop {
 
 /* --- Squarish Order Card --- */
 .order-card-sq {
+  flex: 0 0 280px;
   background: #fff;
-  border: 1px solid #f2e4d6;
-  border-radius: 20px;
-  aspect-ratio: 1 / 1.05;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.03);
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  padding: 1.5rem;
+  scroll-snap-align: start;
   position: relative;
-  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
 .order-card-sq:hover {
   transform: translateY(-8px);
-  box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
   border-color: var(--accent);
 }
 
@@ -1974,20 +1976,20 @@ dialog::backdrop {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 1.2rem;
 }
 
 .sq-status-bar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  justify-content: space-between;
+  margin-bottom: 2rem;
 }
 
 .sq-status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  margin-right: 0.6rem;
 }
 
 .sq-status-dot.live { background: #f59e0b; animation: pulse 1.5s infinite; }
@@ -1998,35 +2000,35 @@ dialog::backdrop {
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
-  color: var(--muted);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  color: var(--text);
   flex: 1;
 }
 
 .sq-date {
   font-size: 0.72rem;
   color: var(--muted);
+  font-weight: 500;
 }
 
 .sq-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.2rem;
+  margin-bottom: 1.5rem;
 }
 
 .sq-order-id {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #a0aec0;
+  margin-bottom: 0.4rem;
+  font-family: inherit;
 }
 
 .sq-price {
-  font-size: 1.6rem;
+  font-family: "Playfair Display", serif;
+  font-size: 2.2rem;
   font-weight: 900;
   color: var(--text);
-  font-family: "Playfair Display", serif;
+  margin-bottom: 0.4rem;
 }
 
 .sq-items {
@@ -2037,28 +2039,29 @@ dialog::backdrop {
 
 
 .sq-footer {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .sq-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  gap: 0.8rem;
 }
 
+
 .sq-btn {
-  border: 0;
-  border-radius: 10px;
-  padding: 0.45rem;
-  font-size: 0.75rem;
-  font-weight: 700;
+  padding: 0.8rem 0.5rem;
+  border-radius: 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: none;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
 }
 
 .sq-btn.primary {
-  background: #f4f2f0;
+  background: #f7fafc;
   color: var(--text);
 }
 
@@ -2074,24 +2077,22 @@ dialog::backdrop {
 }
 
 .sq-btn.danger {
-  background: #fff5f5;
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.1);
   grid-column: span 2;
-  margin-top: 0.3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.02em;
+  background: transparent;
+  color: #fc8181;
+  border: 1px solid rgba(252, 129, 129, 0.2);
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-.sq-btn.danger::before {
-  content: "✕";
-  font-size: 0.6rem;
-  font-weight: 900;
+.sq-btn.danger:hover {
+  background: #fff5f5;
+  border-color: #fc8181;
+  color: #e53e3e;
 }
+
 
 
 .sq-btn:hover {

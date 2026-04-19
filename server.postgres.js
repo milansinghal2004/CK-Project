@@ -1368,12 +1368,21 @@ async function handleApi(req, res, urlObj) {
     const phone = String(urlObj.searchParams.get("phone") || "").trim();
     if (!sessionId && !userId && !phone) return sendError(res, 400, "sessionId or userId or phone is required.");
 
-    const where = [];
+    let sql = "";
     const params = [];
-    if (sessionId) { params.push(sessionId); where.push(`session_id = $${params.length}`); }
-    if (userId) { params.push(userId); where.push(`user_id = $${params.length}`); }
-    if (phone) { params.push(phone); where.push(`customer_phone = $${params.length}`); }
-    const rows = await pool.query(`SELECT * FROM orders WHERE ${where.join(" OR ")} ORDER BY created_at DESC`, params);
+
+    if (userId) {
+      params.push(userId);
+      sql = "SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC";
+    } else if (sessionId) {
+      params.push(sessionId);
+      sql = "SELECT * FROM orders WHERE session_id = $1 ORDER BY created_at DESC";
+    } else {
+      // If neither, we don't fall back to phone alone as it's insecure.
+      return sendError(res, 401, "Authentication required to view orders.");
+    }
+    const rows = await pool.query(sql, params);
+
 
     const orders = [];
     for (const row of rows.rows) {
