@@ -783,6 +783,7 @@ export function CustomerApp() {
             element={
               <OrdersPage
                 orders={orders}
+                apiBase={apiBase}
                 openDetails={openOrderDetails}
                 requestCancel={requestCancel}
                 reorderOrder={reorderOrder}
@@ -1333,7 +1334,7 @@ function MenuPage({ menu, categories, search, setSearch, category, setCategory, 
   );
 }
 
-function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedOrders, refreshOrders, beginPaymentForOrder }) {
+function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedOrders, refreshOrders, beginPaymentForOrder, apiBase }) {
   return (
     <section id="orders" className="section container">
       <div className="section-head">
@@ -1348,6 +1349,7 @@ function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedO
         <h3 className="shelf-title">Current Orders</h3>
         <OrderShelf 
           orders={orders.currentOrders || []} 
+          apiBase={apiBase}
           openDetails={openDetails} 
           requestCancel={requestCancel} 
           reorderOrder={reorderOrder} 
@@ -1361,6 +1363,7 @@ function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedO
         <h3 className="shelf-title">Past Orders</h3>
         <OrderShelf 
           orders={orders.pastOrders || []} 
+          apiBase={apiBase}
           openDetails={openDetails} 
           requestCancel={null} 
           reorderOrder={reorderOrder} 
@@ -1372,7 +1375,7 @@ function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedO
   );
 }
 
-function OrderShelf({ orders, openDetails, requestCancel, reorderOrder, updatedOrders, beginPaymentForOrder, emptyMsg }) {
+function OrderShelf({ orders, openDetails, requestCancel, reorderOrder, updatedOrders, beginPaymentForOrder, emptyMsg, apiBase }) {
   const shelfRef = useRef(null);
 
   const scroll = (dir) => {
@@ -1393,6 +1396,7 @@ function OrderShelf({ orders, openDetails, requestCancel, reorderOrder, updatedO
           <div className="shelf-item" key={o.id} style={{ "--idx": idx }}>
             <OrderCard
               order={o}
+              apiBase={apiBase}
               highlightType={updatedOrders[o.id] || ""}
               onDetails={() => openDetails(o.id)}
               onCancel={o.canCancel && requestCancel ? () => requestCancel(o.id) : null}
@@ -1564,7 +1568,7 @@ function CartBody({ cart, apiBase, updateQty, offerCode, setOfferCode, applyOffe
   );
 }
 
-function OrderCard({ order, onDetails, onCancel, onReorder, onPay, highlightType }) {
+function OrderCard({ order, onDetails, onCancel, onReorder, onPay, highlightType, apiBase }) {
   const itemCount = (order.items || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0);
   const cls = `order-card-sq ${highlightType ? `updated-${highlightType}` : ""}`;
   const statusClass = order.status === "Delivered" ? "done" : order.status === "Cancelled" ? "cancel" : "live";
@@ -1572,6 +1576,9 @@ function OrderCard({ order, onDetails, onCancel, onReorder, onPay, highlightType
   
   const dateStr = new Date(order.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   const timeStr = new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const displayItems = (order.items || []).slice(0, 4);
+  const extraCount = Math.max(0, (order.items || []).length - 4);
 
   return (
     <article className={cls}>
@@ -1581,6 +1588,26 @@ function OrderCard({ order, onDetails, onCancel, onReorder, onPay, highlightType
           <span className="sq-status-text">{order.status}</span>
           <span className="sq-date">{dateStr}</span>
         </div>
+
+        <div className="sq-item-avatars">
+          {displayItems.map((item, i) => (
+            <div 
+              key={`${order.id}-item-${i}`} 
+              className="sq-avatar-wrap"
+              style={{ zIndex: 10 - i }}
+              title={item.name}
+            >
+              <img src={`${apiBase}${item.image}`} alt={item.name} className="sq-avatar-img" />
+              <span className="sq-tooltip">{item.name}</span>
+            </div>
+          ))}
+          {extraCount > 0 && (
+            <div className="sq-avatar-extra" style={{ zIndex: 5 }}>
+              +{extraCount}
+            </div>
+          )}
+        </div>
+
         
         <div className="sq-main">
           <div className="sq-order-id">#{order.id.slice(-6)}</div>

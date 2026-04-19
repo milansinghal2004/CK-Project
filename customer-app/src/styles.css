@@ -2086,3 +2086,88 @@ dialog::backdrop {
   100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
 }
 
+/* --- Squarish Order Card Item Imagery --- */
+.sq-item-avatars {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.2rem;
+  margin: 0.2rem 0 0.8rem;
+}
+
+.sq-avatar-wrap {
+  position: relative;
+  margin-right: -15px; /* Overlap effect */
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.sq-avatar-wrap:hover {
+  transform: translateY(-5px) scale(1.15);
+  margin-right: 0px; /* Expand on hover */
+  z-index: 30 !important;
+}
+
+.sq-avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  display: block;
+}
+
+.sq-avatar-extra {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: #f8f6f4;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  margin-left: 2px;
+  position: relative;
+}
+
+.sq-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background: #1e1e1e;
+  color: #fff;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  z-index: 100;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+.sq-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1e1e1e;
+}
+
+.sq-avatar-wrap:hover .sq-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+
