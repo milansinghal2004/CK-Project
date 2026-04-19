@@ -1620,7 +1620,7 @@ function OrderCard({ order, onDetails, onCancel, onReorder, onPay, highlightType
               <button className="sq-btn primary" onClick={onDetails} title="View Details">Details</button>
               {canPay && <button className="sq-btn accent" onClick={onPay}>Pay</button>}
               <button className="sq-btn secondary" onClick={onReorder} title="Reorder Items">Reorder</button>
-              {onCancel && <button className="sq-btn danger" onClick={onCancel}>×</button>}
+              {onCancel && <button className="sq-btn danger" onClick={onCancel}>Cancel Order</button>}
            </div>
         </div>
       </div>

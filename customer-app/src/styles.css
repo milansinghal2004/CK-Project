@@ -1872,11 +1872,13 @@ dialog::backdrop {
 .shelf-title {
   font-family: "Playfair Display", serif;
   font-size: 1.4rem;
-  margin-bottom: 1.2rem;
+  margin-bottom: 2rem;
   color: var(--text);
-  padding-left: 0.5rem;
+  padding-left: 1rem;
   border-left: 4px solid var(--accent);
+  margin-left: 2rem; /* Align with the first card's start */
 }
+
 
 .shelf-wrapper {
   position: relative;
@@ -1887,14 +1889,14 @@ dialog::backdrop {
 .order-shelf {
   display: flex;
   gap: 1.5rem;
-  overflow-x: scroll;
+  overflow-x: auto;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
-  padding: 5rem 2rem 2rem;
-  margin-top: -3rem; /* Offset the extra top padding */
+  padding: 1rem 2rem 3rem; /* Space for shadow and tooltips below */
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+
 
 .order-shelf::-webkit-scrollbar {
   display: none;
@@ -2030,7 +2032,9 @@ dialog::backdrop {
 .sq-items {
   font-size: 0.78rem;
   color: var(--muted);
+  margin-bottom: 0.5rem;
 }
+
 
 .sq-footer {
   margin-top: 1rem;
@@ -2070,10 +2074,25 @@ dialog::backdrop {
 }
 
 .sq-btn.danger {
-  background: #fdf2f2;
+  background: #fff5f5;
   color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.1);
   grid-column: span 2;
+  margin-top: 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
 }
+
+.sq-btn.danger::before {
+  content: "✕";
+  font-size: 0.6rem;
+  font-weight: 900;
+}
+
 
 .sq-btn:hover {
   filter: brightness(0.95);
@@ -2165,8 +2184,9 @@ dialog::backdrop {
 .sq-avatar-wrap:hover .sq-tooltip {
   opacity: 1;
   visibility: visible;
-  transform: translateX(-50%) translateY(0);
+  transform: translateX(-50%) translateY(-2px);
 }
+
 
 /* Edge Case: Prevent clipping for first and last items in the horizontal shelf */
 .shelf-item:first-child .sq-tooltip {

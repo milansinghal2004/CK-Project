@@ -868,19 +868,29 @@ async function handleApi(req, res, urlObj) {
 
     if (!identifier || !password) return sendError(res, 400, "Username/email and password are required.");
 
-    // If identifier looks like an email, we don't normalize it like a username
-    const isEmail = identifier.includes("@");
-    const normalizedIdentifier = isEmail ? identifier.toLowerCase() : normalizeUsername(identifier);
+    // Extremely resilient lookup: try raw, lowercase, and slugified versions
+    const rawId = identifier;
+    const lowerId = identifier.toLowerCase();
+    const slugId = slugifyUsername(identifier);
 
     const user = await queryOne(
       `SELECT id, name, username, email, password_hash
        FROM users
-       WHERE LOWER(username) = LOWER($1)
-          OR LOWER(email) = LOWER($1)`,
-      [normalizedIdentifier]
+       WHERE LOWER(username) = $1
+          OR LOWER(email) = $1
+          OR LOWER(username) = $2
+          OR LOWER(email) = $2
+          OR LOWER(username) = $3`,
+      [rawId.toLowerCase(), lowerId, slugId]
     );
 
-    if (!user || !verifyPassword(password, user.password_hash)) {
+    if (!user) {
+      console.log(`[AUTH] User not found: ${identifier}`);
+      return sendError(res, 401, "Invalid username or password.");
+    }
+
+    if (!verifyPassword(password, user.password_hash)) {
+      console.log(`[AUTH] Password mismatch for user: ${user.username || user.email}`);
       return sendError(res, 401, "Invalid username or password.");
     }
 
@@ -888,12 +898,13 @@ async function handleApi(req, res, urlObj) {
       ok: true,
       user: {
         id: user.id,
-        name: user.name || user.username || normalizedIdentifier,
+        name: user.name || user.username || identifier,
         username: user.username,
         email: user.email
       }
     });
   }
+
 
   if (method === "POST" && pathname === "/api/admin/auth/login") {
     const body = await parseBody(req);
