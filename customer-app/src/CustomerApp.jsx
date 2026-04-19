@@ -868,7 +868,7 @@ export function CustomerApp() {
               <li><Link to="/checkout">Checkout</Link></li>
               <li><button className="text-btn" onClick={() => setShowAuth(true)}>Login / Signup</button></li>
               <li className="admin-link-sep"></li>
-              <li><a href="http://localhost:5173" className="text-btn admin-btn" target="_blank" rel="noreferrer">Admin Portal</a></li>
+              <li><a href="/admin-react/" className="text-btn admin-btn" target="_blank" rel="noreferrer">Admin Portal</a></li>
             </ul>
           </div>
           
@@ -1018,7 +1018,7 @@ export function CustomerApp() {
                 </p>
 
                 <div className="admin-access-row">
-                  <a href="http://localhost:5173" className="admin-access-btn" target="_blank" rel="noreferrer">
+                  <a href="/admin-react/" className="admin-access-btn" target="_blank" rel="noreferrer">
                     <span className="icon">🛡️</span> Manager / Admin Access
                   </a>
                 </div>
@@ -1336,37 +1336,74 @@ function MenuPage({ menu, categories, search, setSearch, category, setCategory, 
 function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedOrders, refreshOrders, beginPaymentForOrder }) {
   return (
     <section id="orders" className="section container">
-      <div className="section-head"><div><p className="kicker">Track your food</p><h2>Current & past orders</h2></div><button className="btn subtle" onClick={refreshOrders}>Refresh</button></div>
-      <div className="orders-layout">
+      <div className="section-head">
         <div>
-          <h3>Current Orders</h3>
-          {(orders.currentOrders || []).map((o) => (
-            <OrderCard
-              key={o.id}
-              order={o}
-              highlightType={updatedOrders[o.id] || ""}
-              onDetails={() => openDetails(o.id)}
-              onCancel={o.canCancel ? () => requestCancel(o.id) : null}
-              onReorder={() => reorderOrder(o.id)}
-              onPay={() => beginPaymentForOrder(o.id)}
-            />
-          ))}
+          <p className="kicker">Track your food</p>
+          <h2>Current & past orders</h2>
         </div>
-        <div>
-          <h3>Past Orders</h3>
-          {(orders.pastOrders || []).map((o) => (
-            <OrderCard
-              key={o.id}
-              order={o}
-              highlightType={updatedOrders[o.id] || ""}
-              onDetails={() => openDetails(o.id)}
-              onCancel={null}
-              onReorder={() => reorderOrder(o.id)}
-            />
-          ))}
-        </div>
+        <button className="btn subtle" onClick={refreshOrders}>Refresh</button>
+      </div>
+
+      <div className="orders-shelf-container">
+        <h3 className="shelf-title">Current Orders</h3>
+        <OrderShelf 
+          orders={orders.currentOrders || []} 
+          openDetails={openDetails} 
+          requestCancel={requestCancel} 
+          reorderOrder={reorderOrder} 
+          updatedOrders={updatedOrders}
+          beginPaymentForOrder={beginPaymentForOrder}
+          emptyMsg="No active orders at the moment."
+        />
+      </div>
+
+      <div className="orders-shelf-container" style={{ marginTop: "2.5rem" }}>
+        <h3 className="shelf-title">Past Orders</h3>
+        <OrderShelf 
+          orders={orders.pastOrders || []} 
+          openDetails={openDetails} 
+          requestCancel={null} 
+          reorderOrder={reorderOrder} 
+          updatedOrders={updatedOrders}
+          emptyMsg="No past orders found."
+        />
       </div>
     </section>
+  );
+}
+
+function OrderShelf({ orders, openDetails, requestCancel, reorderOrder, updatedOrders, beginPaymentForOrder, emptyMsg }) {
+  const shelfRef = useRef(null);
+
+  const scroll = (dir) => {
+    if (!shelfRef.current) return;
+    const amount = dir === "left" ? -320 : 320;
+    shelfRef.current.scrollBy({ left: amount, behavior: "smooth" });
+  };
+
+  if (!orders.length) {
+    return <p className="empty-orders">{emptyMsg}</p>;
+  }
+
+  return (
+    <div className="shelf-wrapper">
+      <button className="shelf-nav left" onClick={() => scroll("left")} aria-label="Scroll left">‹</button>
+      <div className="order-shelf" ref={shelfRef}>
+        {orders.map((o, idx) => (
+          <div className="shelf-item" key={o.id} style={{ "--idx": idx }}>
+            <OrderCard
+              order={o}
+              highlightType={updatedOrders[o.id] || ""}
+              onDetails={() => openDetails(o.id)}
+              onCancel={o.canCancel && requestCancel ? () => requestCancel(o.id) : null}
+              onReorder={() => reorderOrder(o.id)}
+              onPay={beginPaymentForOrder ? () => beginPaymentForOrder(o.id) : null}
+            />
+          </div>
+        ))}
+      </div>
+      <button className="shelf-nav right" onClick={() => scroll("right")} aria-label="Scroll right">›</button>
+    </div>
   );
 }
 
@@ -1529,21 +1566,36 @@ function CartBody({ cart, apiBase, updateQty, offerCode, setOfferCode, applyOffe
 
 function OrderCard({ order, onDetails, onCancel, onReorder, onPay, highlightType }) {
   const itemCount = (order.items || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0);
-  const cls = `order-card ${highlightType ? `updated-${highlightType}` : ""}`;
+  const cls = `order-card-sq ${highlightType ? `updated-${highlightType}` : ""}`;
   const statusClass = order.status === "Delivered" ? "done" : order.status === "Cancelled" ? "cancel" : "live";
   const canPay = order.paymentStatus === "Pending" && needsOnlinePayment(order.paymentMode);
+  
+  const dateStr = new Date(order.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  const timeStr = new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
     <article className={cls}>
-      <div className="order-top"><strong>{order.id}</strong><span className={`order-status ${statusClass}`}>{order.status}</span></div>
-      <p>{itemCount} item(s) | Rs {order.pricing?.total} | {order.paymentMode}</p>
-      <p>Payment: {order.paymentStatus || "Pending"}</p>
-      <p>{new Date(order.createdAt).toLocaleString()}</p>
-      <div className="order-actions">
-        <button className="btn subtle" onClick={onDetails}>Details</button>
-        {canPay ? <button className="btn accent" onClick={onPay}>Pay Now</button> : null}
-        {onCancel ? <button className="btn subtle" onClick={onCancel}>Cancel</button> : null}
-        <button className="btn subtle" onClick={onReorder}>Reorder</button>
+      <div className="sq-card-inner">
+        <div className="sq-status-bar">
+          <span className={`sq-status-dot ${statusClass}`}></span>
+          <span className="sq-status-text">{order.status}</span>
+          <span className="sq-date">{dateStr}</span>
+        </div>
+        
+        <div className="sq-main">
+          <div className="sq-order-id">#{order.id.slice(-6)}</div>
+          <div className="sq-price">Rs {order.pricing?.total}</div>
+          <div className="sq-items">{itemCount} items • {order.paymentMode}</div>
+        </div>
+
+        <div className="sq-footer">
+           <div className="sq-actions">
+              <button className="sq-btn primary" onClick={onDetails} title="View Details">Details</button>
+              {canPay && <button className="sq-btn accent" onClick={onPay}>Pay</button>}
+              <button className="sq-btn secondary" onClick={onReorder} title="Reorder Items">Reorder</button>
+              {onCancel && <button className="sq-btn danger" onClick={onCancel}>×</button>}
+           </div>
+        </div>
       </div>
     </article>
   );

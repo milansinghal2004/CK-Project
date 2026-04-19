@@ -1862,3 +1862,227 @@ dialog::backdrop {
   padding: 0.4rem 1rem;
   font-size: 0.8rem;
 }
+
+/* --- Premium Horizontal Order Shelf --- */
+.orders-shelf-container {
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.shelf-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.4rem;
+  margin-bottom: 1.2rem;
+  color: var(--text);
+  padding-left: 0.5rem;
+  border-left: 4px solid var(--accent);
+}
+
+.shelf-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.order-shelf {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: scroll;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  padding: 1rem 0.5rem 2rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.order-shelf::-webkit-scrollbar {
+  display: none;
+}
+
+.shelf-item {
+  flex: 0 0 280px;
+  scroll-snap-align: start;
+  animation: shelf-fade-in 0.6s ease forwards;
+  animation-delay: calc(var(--idx) * 0.1s);
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes shelf-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shelf-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  color: var(--text);
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.shelf-wrapper:hover .shelf-nav {
+  opacity: 1;
+}
+
+.shelf-nav:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.shelf-nav.left { left: -20px; }
+.shelf-nav.right { right: -20px; }
+
+/* --- Squarish Order Card --- */
+.order-card-sq {
+  background: #fff;
+  border: 1px solid #f2e4d6;
+  border-radius: 20px;
+  aspect-ratio: 1 / 1.05;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.03);
+  overflow: hidden;
+  position: relative;
+  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.order-card-sq:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+  border-color: var(--accent);
+}
+
+.sq-card-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 1.2rem;
+}
+
+.sq-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sq-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.sq-status-dot.live { background: #f59e0b; animation: pulse 1.5s infinite; }
+.sq-status-dot.done { background: #10b981; }
+.sq-status-dot.cancel { background: #ef4444; }
+
+.sq-status-text {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  flex: 1;
+}
+
+.sq-date {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.sq-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.sq-order-id {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.sq-price {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--text);
+  font-family: "Playfair Display", serif;
+}
+
+.sq-items {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.sq-footer {
+  margin-top: 1rem;
+}
+
+.sq-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.sq-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.sq-btn.primary {
+  background: #f4f2f0;
+  color: var(--text);
+}
+
+.sq-btn.accent {
+  background: var(--accent);
+  color: #fff;
+}
+
+.sq-btn.secondary {
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.sq-btn.danger {
+  background: #fdf2f2;
+  color: #ef4444;
+  grid-column: span 2;
+}
+
+.sq-btn:hover {
+  filter: brightness(0.95);
+  transform: scale(1.02);
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
