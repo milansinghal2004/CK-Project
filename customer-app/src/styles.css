@@ -2025,8 +2025,9 @@ dialog::backdrop {
   color: #fff;
   border-color: var(--accent);
   transform: translateY(-50%) scale(1.1);
+}
 
-  .shelf-nav.left {
+.shelf-nav.left {
     left: -20px;
   }
 
@@ -2395,4 +2396,3 @@ dialog::backdrop {
   .shelf-item:last-child .sq-avatar-wrap:hover .sq-tooltip {
     transform: translateX(0) translateY(0);
   }
-}

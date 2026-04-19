@@ -1,7 +1,10 @@
 const { Client } = require("pg");
+const { loadEnv } = require("../config/load-env");
+
+loadEnv();
 
 async function run() {
-  const databaseUrl = "postgresql://neondb_owner:npg_RUp4ZbhLa3Fk@ep-icy-water-amkd9clb-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+  const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     console.error("DATABASE_URL env var is required.");
     process.exit(1);
