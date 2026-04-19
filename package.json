@@ -21,13 +21,15 @@
     "admin:preview": "vite preview --config admin-app/vite.config.js",
     "customer:dev": "vite --config customer-app/vite.config.js",
     "customer:build": "vite build --config customer-app/vite.config.js",
-    "customer:preview": "vite preview --config customer-app/vite.config.js"
+    "customer:preview": "vite preview --config customer-app/vite.config.js",
+    "dev:all": "concurrently --kill-others -n \"API,ADM,CST\" -c \"magenta,blue,green\" \"npm run start:db\" \"npm run admin:dev\" \"npm run customer:dev\""
   },
   "engines": {
     "node": ">=18"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
     "vite": "^8.0.3"
   }
 }

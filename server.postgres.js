@@ -911,9 +911,31 @@ async function handleApi(req, res, urlObj) {
     if (offerCode) {
       const offer = await queryOne("SELECT * FROM offers WHERE code = $1 AND is_active = TRUE", [offerCode]);
       if (offer && subtotal >= offer.min_order_value) {
-        if (offer.discount_percent) discount = Math.round((subtotal * Number(offer.discount_percent)) / 100);
-        if (offer.discount_flat) discount = Math.min(subtotal, Number(offer.discount_flat));
-        appliedOffer = offer.code;
+        let isEligible = true;
+        if (offer.is_new_user_only) {
+          const prevOrders = await queryOne(
+            "SELECT COUNT(*)::int as count FROM orders WHERE (session_id = $1 OR user_id = (SELECT id FROM users WHERE id = (SELECT id FROM carts WHERE session_id = $1 LIMIT 1))) AND status <> 'Cancelled'",
+            [sessionId]
+          );
+          // Better way: Check if user is logged in and has orders, OR if sessionId has orders
+          // Actually, let's just check if current sessionId or the user ID associated with this session has any past non-cancelled orders.
+          const userCheck = await queryOne("SELECT id FROM users WHERE id IN (SELECT id FROM users WHERE email IN (SELECT email FROM users WHERE id = (SELECT id FROM carts WHERE session_id = $1 LIMIT 1)))", [sessionId]); // This is complex
+          
+          // Simplified: Just check if this sessionId OR any user associated with this sessionId in the 'orders' table has orders.
+          const hasPastOrders = await queryOne(
+            `SELECT 1 FROM orders 
+             WHERE (session_id = $1 OR (user_id IS NOT NULL AND user_id IN (SELECT user_id FROM orders WHERE session_id = $1)))
+             AND status <> 'Cancelled' LIMIT 1`, 
+            [sessionId]
+          );
+          if (hasPastOrders) isEligible = false;
+        }
+
+        if (isEligible) {
+          if (offer.discount_percent) discount = Math.round((subtotal * Number(offer.discount_percent)) / 100);
+          if (offer.discount_flat) discount = Math.min(subtotal, Number(offer.discount_flat));
+          appliedOffer = offer.code;
+        }
       }
     }
     const deliveryFee = subtotal > 0 ? 39 : 0;
@@ -1378,6 +1400,35 @@ async function handleApi(req, res, urlObj) {
     return sendJson(res, 200, { ok: true, tickets });
   }
 
+  if (method === "POST" && pathname.startsWith("/api/support/tickets/") && pathname.endsWith("/replies")) {
+    const parts = pathname.split("/").filter(Boolean);
+    const ticketId = parts[3] || "";
+    const body = await parseBody(req);
+    const message = String(body.message || "").trim();
+    const authorName = String(body.authorName || "Customer").trim();
+
+    if (!ticketId || !message) return sendError(res, 400, "ticketId and message are required.");
+
+    const ticket = await queryOne("SELECT id, order_id FROM support_tickets WHERE id = $1", [ticketId]);
+    if (!ticket) return sendError(res, 404, "Ticket not found.");
+
+    await pool.query(
+      "INSERT INTO support_ticket_replies (ticket_id, author_type, author_name, message) VALUES ($1, 'customer', $2, $3)",
+      [ticketId, authorName, message]
+    );
+
+    const order = await queryOne("SELECT session_id FROM orders WHERE id = $1", [ticket.order_id]);
+    if (order?.session_id) {
+      emitRealtimeUpdate(order.session_id, "support_updated", {
+        ticketId,
+        orderId: ticket.order_id,
+        authorType: "customer"
+      });
+    }
+
+    return sendJson(res, 200, { ok: true, ticketId });
+  }
+
   if (method === "GET" && pathname.startsWith("/api/orders/")) {
     const parts = pathname.split("/").filter(Boolean);
     const orderId = parts[2] || "";
@@ -1695,7 +1746,11 @@ async function handleStatic(req, res, urlObj) {
     const ext = path.extname(filePath).toLowerCase();
     const contentType = contentTypes[ext] || "application/octet-stream";
     const stream = fs.createReadStream(filePath);
-    res.writeHead(200, { "Content-Type": contentType });
+    res.writeHead(200, {
+      "Content-Type": contentType,
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "public, max-age=86400"
+    });
     stream.pipe(res);
   } catch {
     const indexPath = path.join(PUBLIC_DIR, "index.html");

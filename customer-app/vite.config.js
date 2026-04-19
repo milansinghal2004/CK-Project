@@ -9,8 +9,14 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 5174,
     proxy: {
-      "/api": "http://localhost:3001",
-      "/assets": "http://localhost:3001"
+      "/api": {
+        target: "http://127.0.0.1:3001",
+        changeOrigin: true
+      },
+      "/assets": {
+        target: "http://127.0.0.1:3001",
+        changeOrigin: true
+      }
     }
   },
   build: {

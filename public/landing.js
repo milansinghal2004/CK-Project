@@ -146,8 +146,11 @@ async function loginConsumer(event) {
   }
   if (!res.ok) return showNotice(data.message || "Consumer login failed. Please check username/password.");
   localStorage.setItem("ck_user", JSON.stringify(data.user));
+  const isDev = window.location.port === "3001" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const customerUrl = isDev ? "http://127.0.0.1:5174/" : "/customer-react/";
+  
   showNotice("Consumer login successful. Redirecting...");
-  window.location.href = "/customer-react/";
+  window.location.href = customerUrl;
 }
 
 async function registerConsumer(event) {
@@ -206,9 +209,12 @@ async function loginAdmin(event) {
   if (!res.ok) return showNotice(data.message || "Admin login failed.");
   localStorage.setItem("ck_admin_key", data.adminKey);
   localStorage.setItem("ck_admin_user", data.admin.username);
+  const isDev = window.location.port === "3001" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const adminUrl = isDev ? "http://127.0.0.1:5173/" : "/admin-react/";
+
   showNotice("Admin login successful. Redirecting...");
   closeAdminDialog();
-  window.location.href = "/admin-react/";
+  window.location.href = adminUrl;
 }
 
 function showNotice(message) {

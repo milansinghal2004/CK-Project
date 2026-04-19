@@ -30,6 +30,7 @@ export function CustomerApp() {
   const [showPassword, setShowPassword] = useState(false);
   const [cancelDraft, setCancelDraft] = useState({ open: false, orderId: "", reason: "Changed my mind" });
   const [supportDraft, setSupportDraft] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState({});
   const [updatedOrders, setUpdatedOrders] = useState({});
 
   const sessionId = useMemo(loadOrCreateSessionId, []);
@@ -45,6 +46,11 @@ export function CustomerApp() {
     if (!apiBase) return;
     loadMenu();
   }, [category, search, apiBase]);
+
+  useEffect(() => {
+    if (!apiBase) return;
+    loadOrders();
+  }, [apiBase, user?.id]);
 
   useEffect(() => {
     if (!apiBase || !window.EventSource) return;
@@ -150,11 +156,9 @@ export function CustomerApp() {
     const results = await Promise.allSettled([
       loadPaymentConfig(base),
       loadCategories(base),
-      loadMenu(base),
       loadOffers(base),
       loadToday(base),
-      loadCart(base),
-      loadOrders(base)
+      loadCart(base)
     ]);
     const failed = results.filter((r) => r.status === "rejected").length;
     if (failed) {
@@ -586,6 +590,7 @@ export function CustomerApp() {
   function logout() {
     setUser(null);
     localStorage.removeItem("ck_user");
+    loadOrders();
     flash("Logged out");
   }
 
@@ -673,6 +678,19 @@ export function CustomerApp() {
     flash(`Support ticket created: ${data.ticketId}`);
   }
 
+  async function submitSupportReply(ticketId, orderId) {
+    const message = (replyDrafts[ticketId] || "").trim();
+    if (!message) return;
+    await api(`/api/support/tickets/${ticketId}/replies`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, authorName: user?.name || "Customer" })
+    });
+    setReplyDrafts(p => ({ ...p, [ticketId]: "" }));
+    await loadSupport(orderId);
+    flash("Reply sent");
+  }
+
   function flash(msg) {
     setNotice(msg);
     setTimeout(() => setNotice(""), 2200);
@@ -684,9 +702,12 @@ export function CustomerApp() {
       <div className={`live-notice ${notice ? "show" : ""}`}>{notice}</div>
       <header className="topbar">
         <div className="container topbar-inner">
-          <Link className="brand" to="/">
-            <img src={`${apiBase}/assets/logo-ck.png`} alt="CK logo" />
-            <div><strong>Cloud Kitchen</strong><span>Startup Mode</span></div>
+          <Link className="brand-group" to="/">
+            <img src={`${apiBase}/assets/logo-ck.png`} alt="Cloud Kitchen" className="site-logo" />
+            <div className="brand-text">
+              <strong>Cloud Kitchen</strong>
+              <span>Startup Mode</span>
+            </div>
           </Link>
           <nav className="navlinks">
             <Link to="/menu">Menu</Link>
@@ -767,6 +788,7 @@ export function CustomerApp() {
                 reorderOrder={reorderOrder}
                 updatedOrders={updatedOrders}
                 refreshOrders={loadOrders}
+                beginPaymentForOrder={beginPaymentForOrder}
               />
             }
           />
@@ -806,14 +828,77 @@ export function CustomerApp() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <footer id="contact" className="footer container">
-        <div>
-          <strong>Cloud Kitchen</strong>
-          <p>Sector 17, Chandigarh</p>
+      <footer id="contact" className="site-footer">
+        <div className="container footer-grid">
+          <div className="footer-col brand-col">
+            <div className="footer-brand">
+              <img src="/assets/logo-ck.png" alt="Cloud Kitchen" />
+              <div className="brand-text">
+                <strong>Cloud Kitchen</strong>
+                <span>Startup Mode</span>
+              </div>
+            </div>
+            <p className="footer-bio">
+              Premium cloud kitchen delivering gourmet experiences to your doorstep. Crafted with love, served with care.
+            </p>
+            <div className="social-links">
+              <span className="social-icon">Instagram</span>
+              <span className="social-icon">FaceBook</span>
+              <span className="social-icon">Twitter</span>
+            </div>
+          </div>
+          
+          <div className="footer-col">
+            <h4>Cuisines</h4>
+            <ul className="footer-links">
+              <li>North Indian</li>
+              <li>Chinese Fusion</li>
+              <li>Continental</li>
+              <li>Desserts & Shakes</li>
+              <li>Healthy Bowls</li>
+            </ul>
+          </div>
+          
+          <div className="footer-col">
+            <h4>Quick Links</h4>
+            <ul className="footer-links">
+              <li><Link to="/">Menu</Link></li>
+              <li><Link to="/specials">Today's Specials</Link></li>
+              <li><Link to="/orders">My Orders</Link></li>
+              <li><Link to="/checkout">Checkout</Link></li>
+              <li><button className="text-btn" onClick={() => setShowAuth(true)}>Login / Signup</button></li>
+              <li className="admin-link-sep"></li>
+              <li><a href="http://localhost:5173" className="text-btn admin-btn" target="_blank" rel="noreferrer">Admin Portal</a></li>
+            </ul>
+          </div>
+          
+          <div className="footer-col contact-col">
+            <h4>Contact Details</h4>
+            <ul className="contact-list">
+              <li>
+                <strong>Location:</strong>
+                <span>Sector 17, Main Market, Chandigarh, 160017</span>
+              </li>
+              <li>
+                <strong>Phone:</strong>
+                <span>+91 98765 00000</span>
+              </li>
+              <li>
+                <strong>Email:</strong>
+                <span>hello@cloudkitchen.local</span>
+              </li>
+              <li>
+                <strong>Hours:</strong>
+                <span>Mon - Sun: 10:00 AM - 11:30 PM</span>
+              </li>
+            </ul>
+          </div>
         </div>
-        <div>
-          <p>Open daily: 10:00 AM - 11:30 PM</p>
-          <p>Support: +91 98765 00000</p>
+        
+        <div className="footer-bottom">
+          <div className="container">
+            <p>&copy; {new Date().getFullYear()} Cloud Kitchen Startup Mode. All rights reserved.</p>
+          </div>
         </div>
       </footer>
 
@@ -841,7 +926,7 @@ export function CustomerApp() {
               isPaying={isPaying}
             />
           </aside>
-          <div className="backdrop show" onClick={() => setShowCart(false)} />
+        <div className="backdrop show cart-panel-backdrop" onClick={() => setShowCart(false)} />
         </>
       ) : null}
 
@@ -931,6 +1016,12 @@ export function CustomerApp() {
                     {authMode === "login" ? "Register here" : "Sign in here"}
                   </button>
                 </p>
+
+                <div className="admin-access-row">
+                  <a href="http://localhost:5173" className="admin-access-btn" target="_blank" rel="noreferrer">
+                    <span className="icon">🛡️</span> Manager / Admin Access
+                  </a>
+                </div>
               </form>
             </div>
           </div>
@@ -940,10 +1031,12 @@ export function CustomerApp() {
       {selectedOrder ? (
         <div className="backdrop show" onClick={() => setSelectedOrder(null)}>
           <div className="modal order-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="row">
-              <h3>Order {selectedOrder.id}</h3>
-              <button className="btn subtle" onClick={() => setSelectedOrder(null)}>Close</button>
+            <div className="modal-header">
+              <h3>Order Details</h3>
+              <button className="close-btn" onClick={() => setSelectedOrder(null)}>&times;</button>
             </div>
+            <div className="modal-body">
+              <div className="order-id-tag">ID: {selectedOrder.id}</div>
             <div className={`detail ${updatedOrders[selectedOrder.id] ? "updated" : ""}`}>
               <p><strong>Status:</strong> {selectedOrder.status}</p>
               <p><strong>Payment:</strong> {selectedOrder.paymentMode} ({selectedOrder.paymentStatus || "Pending"})</p>
@@ -988,13 +1081,33 @@ export function CustomerApp() {
                 <div className="support-thread">
                   {orderSupport.map((ticket) => (
                     <article className="support-ticket" key={ticket.id}>
-                      <p><strong>{ticket.id}</strong> | {ticket.status} | {new Date(ticket.createdAt).toLocaleString()}</p>
-                      <p>{ticket.message}</p>
-                      <div>
+                      <div className="ticket-header">
+                        <strong>{ticket.id}</strong>
+                        <span className={`status-tag ${ticket.status}`}>{ticket.status}</span>
+                        <span className="time">{new Date(ticket.createdAt).toLocaleString()}</span>
+                      </div>
+                      <div className="ticket-message source">
+                        <p>{ticket.message}</p>
+                      </div>
+                      <div className="ticket-replies">
                         {(ticket.replies || []).map((reply, idx) => (
-                          <p key={`${ticket.id}-${idx}`}><strong>{reply.authorType === "admin" ? "Manager" : "You"}:</strong> {reply.message} ({new Date(reply.at).toLocaleString()})</p>
+                          <div key={`${ticket.id}-${idx}`} className={`reply-bubble ${reply.authorType}`}>
+                            <p><strong>{reply.authorType === "admin" ? "Manager" : "You"}:</strong> {reply.message}</p>
+                            <span className="reply-time">{new Date(reply.at).toLocaleTimeString()}</span>
+                          </div>
                         ))}
                       </div>
+                      {ticket.status === "open" && (
+                        <div className="ticket-reply-box">
+                          <textarea 
+                            rows={1} 
+                            placeholder="Type a reply..." 
+                            value={replyDrafts[ticket.id] || ""} 
+                            onChange={(e) => setReplyDrafts(p => ({ ...p, [ticket.id]: e.target.value }))}
+                          />
+                          <button className="btn subtle small" onClick={() => submitSupportReply(ticket.id, selectedOrder.id)}>Reply</button>
+                        </div>
+                      )}
                     </article>
                   ))}
                 </div>
@@ -1004,12 +1117,13 @@ export function CustomerApp() {
                 <button className="btn subtle" onClick={() => raiseSupport(selectedOrder.id)}>Send Query</button>
               </div>
             </div>
-            <div className="actions-row">
+            </div>
+            <div className="modal-footer">
               <button className="btn subtle" disabled={!selectedOrder.canCancel} onClick={() => requestCancel(selectedOrder.id)}>
                 {selectedOrder.canCancel ? "Cancel Order" : "Cancellation Closed"}
               </button>
               {selectedOrder.paymentStatus === "Pending" && needsOnlinePayment(selectedOrder.paymentMode) ? (
-                <button className="btn subtle" disabled={isPaying} onClick={() => beginPaymentForOrder(selectedOrder.id)}>{isPaying ? "Processing..." : "Pay Now"}</button>
+                <button className="btn accent" disabled={isPaying} onClick={() => beginPaymentForOrder(selectedOrder.id)}>{isPaying ? "Processing..." : "Pay Now"}</button>
               ) : null}
               {selectedOrder.paymentStatus === "Pending" && String(selectedOrder.paymentMode || "").toUpperCase() === "COD" ? (
                 <button className="btn subtle" onClick={() => payOrder(selectedOrder.id)}>Mark Paid</button>
@@ -1044,36 +1158,46 @@ export function CustomerApp() {
       {paymentPortal.open ? (
         <div className="backdrop show" onClick={cancelMockPayment}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Payment Portal</h3>
-            <p><strong>Order:</strong> {paymentPortal.orderId}</p>
-            <p><strong>Provider:</strong> {paymentPortal.session?.provider === "upi_qr" ? "UPI QR" : "Mock Gateway"}</p>
-            <p><strong>Amount:</strong> Rs {Number(paymentPortal.session?.amountPaise || 0) / 100}</p>
-            {paymentPortal.session?.provider === "upi_qr" ? (
-              <>
-                <p>Scan this QR in any UPI app and complete the payment, then enter UTR/reference below.</p>
-                {paymentPortal.session?.qrImageUrl ? (
-                  <div style={{ display: "flex", justifyContent: "center", margin: "0.7rem 0" }}>
-                    <img src={paymentPortal.session.qrImageUrl} alt="UPI QR" style={{ width: "220px", height: "220px", borderRadius: "12px", border: "1px solid #efe3d5" }} />
+            <div className="modal-header">
+              <h3>Payment Portal</h3>
+              <button className="close-btn" onClick={cancelMockPayment}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="order-id-tag">Order: {paymentPortal.orderId}</div>
+              <p><strong>Provider:</strong> {paymentPortal.session?.provider === "upi_qr" ? "UPI QR" : "Mock Gateway"}</p>
+              <p><strong>Amount:</strong> <span className="price">Rs {Number(paymentPortal.session?.amountPaise || 0) / 100}</span></p>
+              {paymentPortal.session?.provider === "upi_qr" ? (
+                <>
+                  <p>Scan this QR in any UPI app and complete the payment, then enter UTR/reference below.</p>
+                  {paymentPortal.session?.qrImageUrl ? (
+                    <div style={{ display: "flex", justifyContent: "center", margin: "1.5rem 0" }}>
+                      <img src={paymentPortal.session.qrImageUrl} alt="UPI QR" style={{ width: "220px", height: "220px", borderRadius: "16px", border: "1.5px solid rgba(0,0,0,0.05)", boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }} />
+                    </div>
+                  ) : null}
+                  <div className="detail">
+                    <p><strong>Payee:</strong> {paymentPortal.session?.payee || paymentConfig.upiReceiverName}</p>
+                    <p><strong>VPA:</strong> {paymentPortal.session?.vpa || paymentConfig.upiReceiverVpa || "Not configured"}</p>
+                    {paymentPortal.session?.upiUri ? (
+                      <p style={{ marginTop: "1rem" }}>
+                        <a className="btn subtle" href={paymentPortal.session.upiUri}>Open UPI App</a>
+                      </p>
+                    ) : null}
                   </div>
-                ) : null}
-                <p><strong>Payee:</strong> {paymentPortal.session?.payee || paymentConfig.upiReceiverName}</p>
-                <p><strong>VPA:</strong> {paymentPortal.session?.vpa || paymentConfig.upiReceiverVpa || "Not configured"}</p>
-                {paymentPortal.session?.upiUri ? (
-                  <p>
-                    <a className="btn subtle" href={paymentPortal.session.upiUri}>Open UPI App</a>
-                  </p>
-                ) : null}
-                <input
-                  placeholder="Enter UTR / Transaction Reference"
-                  value={upiReference}
-                  onChange={(e) => setUpiReference(e.target.value)}
-                />
-              </>
-            ) : (
-              <p>This simulates a real payment gateway. Confirm to mark payment successful.</p>
-            )}
-            {paymentPortal.error ? <p style={{ color: "#b3261e" }}>{paymentPortal.error}</p> : null}
-            <div className="actions-row">
+                  <div className="checkout-field" style={{ marginTop: "1rem" }}>
+                    <label>Transaction Reference</label>
+                    <input
+                      placeholder="Enter UTR / Transaction Reference"
+                      value={upiReference}
+                      onChange={(e) => setUpiReference(e.target.value)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <p>This simulates a real payment gateway. Confirm to mark payment successful.</p>
+              )}
+            </div>
+            {paymentPortal.error ? <p style={{ color: "#b3261e", padding: "0 2.5rem" }}>{paymentPortal.error}</p> : null}
+            <div className="modal-footer">
               <button className="btn subtle" disabled={paymentPortal.processing} onClick={cancelMockPayment}>Cancel Payment</button>
               <button className="btn subtle" disabled={paymentPortal.processing} onClick={failMockPayment}>Simulate Failure</button>
               <button className="btn accent" disabled={paymentPortal.processing} onClick={confirmMockPayment}>{paymentPortal.processing ? "Processing..." : paymentPortal.session?.provider === "upi_qr" ? "I Have Paid" : "Pay Securely"}</button>
@@ -1087,22 +1211,24 @@ export function CustomerApp() {
 
 function HomePage({ apiBase, todaysSpecial, addToCart }) {
   return (
-    <section id="home" className="hero container">
-      <div className="hero-copy">
-        <p className="kicker">Fast delivery. Premium flavor.</p>
-        <h1>Freshly cooked food for every craving.</h1>
-        <p>
-          Built from your Figma references and fully connected end-to-end.
-          Browse, add to cart, apply offers, and place orders in one flow.
-        </p>
-        <div className="hero-actions">
-          <Link className="btn accent" to="/menu">Order now</Link>
-          <Link className="btn subtle" to="/checkout">See deals</Link>
+    <section id="home" className="hero-landing">
+      <div className="container hero-inner">
+        <div className="hero-copy">
+          <p className="kicker">Fast delivery. Premium flavor.</p>
+          <h1>Freshly cooked food for every craving.</h1>
+          <p className="hero-text">
+            Built from your Figma references and fully connected end-to-end.
+            Browse, add to cart, apply offers, and place orders in one flow.
+          </p>
+          <div className="hero-actions">
+            <Link className="btn accent" to="/menu">Order now</Link>
+            <Link className="btn subtle" to="/checkout">See deals</Link>
+          </div>
         </div>
-      </div>
-      <div className="hero-visual">
-        <img className="hero-bg" src={`${apiBase}/assets/hero-bg.png`} alt="Decorative food background" />
-        <img className="hero-main" src={`${apiBase}/assets/hero-bowl.png`} alt="Main dish" />
+        <div className="hero-visual">
+          <div className="hero-blob"></div>
+          <img className="hero-main" src={`${apiBase}/assets/hero-bowl.png`} alt="Main dish" />
+        </div>
       </div>
     </section>
   );
@@ -1117,31 +1243,37 @@ function SpecialsPage({ apiBase, todaysSpecial, addToCart }) {
           <h2>Chef's Studio</h2>
         </div>
       </div>
-      <div className="specials-layout">
-        <article className="chef-special-redesign">
-          <img src={`${apiBase}/assets/feature-biryani.jpg`} alt="Chef special dish" />
-          <div className="chef-content">
+      <div className="specials-grid">
+        <article className="special-card feature-card">
+          <div className="special-img-wrap">
+            <img src={`${apiBase}/assets/feature-biryani.jpg`} alt="Chef special dish" />
+          </div>
+          <div className="special-info">
             <p className="kicker">Chef's curated plate</p>
             <h3>Royal Pot Biryani</h3>
             <p>Layered saffron rice, roasted vegetables, and aromatic spices in our signature dum finish. Balanced heat, rich aroma, and quick delivery.</p>
             <div className="special-meta">
-              <span>Prep: 26 mins</span>
-              <span>Rating: 4.8</span>
-              <span>Pure Veg</span>
+              <span className="badge">Prep: 26 mins</span>
+              <span className="badge green">Pure Veg</span>
             </div>
             <button className="btn accent" onClick={() => addToCart("dish-001")}>Add to cart</button>
           </div>
         </article>
-        <article className="today-special-card">
-          <p className="kicker">Auto updates daily</p>
-          <h3>{todaysSpecial?.name || "Today's Special"}</h3>
-          <p>{todaysSpecial?.description || "No special available right now."}</p>
-          <div className="today-special-details">
-            <span>Rs {todaysSpecial?.price ?? "--"}</span>
-            <span>{todaysSpecial?.category || "Category --"}</span>
+        
+        <article className="special-card daily-card">
+          <div className="daily-head">
+            <p className="kicker">Auto updates daily</p>
+            <h3>{todaysSpecial?.name || "Today's Special"}</h3>
           </div>
-          <div className="today-special-image-wrap">
-            <img src={todaysSpecial ? `${apiBase}${todaysSpecial.image}` : `${apiBase}/assets/feature-biryani.jpg`} alt={todaysSpecial?.name || "Today's special item"} />
+          <div className="daily-body">
+            <p>{todaysSpecial?.description || "No special available right now."}</p>
+            <div className="daily-stats">
+              <span className="price">Rs {todaysSpecial?.price ?? "--"}</span>
+              <span className="cat">{todaysSpecial?.category || "Category --"}</span>
+            </div>
+            <div className="daily-visual">
+              <img src={todaysSpecial ? `${apiBase}${todaysSpecial.image}` : `${apiBase}/assets/feature-biryani.jpg`} alt={todaysSpecial?.name || "Today's special item"} />
+            </div>
           </div>
           <button className="btn accent full" onClick={() => addToCart(todaysSpecial?.id)} disabled={!todaysSpecial}>Add today's special</button>
         </article>
@@ -1201,7 +1333,7 @@ function MenuPage({ menu, categories, search, setSearch, category, setCategory, 
   );
 }
 
-function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedOrders, refreshOrders }) {
+function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedOrders, refreshOrders, beginPaymentForOrder }) {
   return (
     <section id="orders" className="section container">
       <div className="section-head"><div><p className="kicker">Track your food</p><h2>Current & past orders</h2></div><button className="btn subtle" onClick={refreshOrders}>Refresh</button></div>
@@ -1216,6 +1348,7 @@ function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedO
               onDetails={() => openDetails(o.id)}
               onCancel={o.canCancel ? () => requestCancel(o.id) : null}
               onReorder={() => reorderOrder(o.id)}
+              onPay={() => beginPaymentForOrder(o.id)}
             />
           ))}
         </div>
@@ -1358,14 +1491,28 @@ function CartBody({ cart, apiBase, updateQty, offerCode, setOfferCode, applyOffe
           checkoutOrder();
         }}
       >
-        <input placeholder="Full name" value={checkout.name} onChange={(e) => setCheckout((c) => ({ ...c, name: e.target.value }))} />
-        <input placeholder="Phone" value={checkout.phone} onChange={(e) => setCheckout((c) => ({ ...c, phone: e.target.value }))} />
-        <textarea rows={2} placeholder="Address" value={checkout.address} onChange={(e) => setCheckout((c) => ({ ...c, address: e.target.value }))} />
-        <select value={checkout.paymentMode} onChange={(e) => setCheckout((c) => ({ ...c, paymentMode: e.target.value }))}>
-          <option value="COD">Cash on Delivery</option>
-          <option value="UPI">UPI (Online)</option>
-          <option value="CARD">Card (Online)</option>
-        </select>
+        <div className="checkout-field">
+          <label>Full Name</label>
+          <input placeholder="Enter your full name" value={checkout.name} onChange={(e) => setCheckout((c) => ({ ...c, name: e.target.value }))} />
+        </div>
+        <div className="checkout-field">
+          <label>Phone Number</label>
+          <input placeholder="e.g. +91 98765 00000" value={checkout.phone} onChange={(e) => setCheckout((c) => ({ ...c, phone: e.target.value }))} />
+        </div>
+        <div className="checkout-field">
+          <label>Delivery Address</label>
+          <textarea rows={3} placeholder="Flat/House No, Colony, City" value={checkout.address} onChange={(e) => setCheckout((c) => ({ ...c, address: e.target.value }))} />
+        </div>
+        <div className="checkout-field">
+          <label>Payment Method</label>
+          <div className="select-wrapper">
+            <select value={checkout.paymentMode} onChange={(e) => setCheckout((c) => ({ ...c, paymentMode: e.target.value }))}>
+              <option value="COD">Cash on Delivery</option>
+              <option value="UPI">UPI (Online)</option>
+              <option value="CARD">Card (Online)</option>
+            </select>
+          </div>
+        </div>
         {String(checkout.paymentMode).toUpperCase() !== "COD" ? (
           <small style={{ color: "#6c655f" }}>
             {String(checkout.paymentMode).toUpperCase() === "UPI"
@@ -1380,10 +1527,12 @@ function CartBody({ cart, apiBase, updateQty, offerCode, setOfferCode, applyOffe
   );
 }
 
-function OrderCard({ order, onDetails, onCancel, onReorder, highlightType }) {
+function OrderCard({ order, onDetails, onCancel, onReorder, onPay, highlightType }) {
   const itemCount = (order.items || []).reduce((sum, i) => sum + Number(i.quantity || 0), 0);
   const cls = `order-card ${highlightType ? `updated-${highlightType}` : ""}`;
   const statusClass = order.status === "Delivered" ? "done" : order.status === "Cancelled" ? "cancel" : "live";
+  const canPay = order.paymentStatus === "Pending" && needsOnlinePayment(order.paymentMode);
+
   return (
     <article className={cls}>
       <div className="order-top"><strong>{order.id}</strong><span className={`order-status ${statusClass}`}>{order.status}</span></div>
@@ -1392,6 +1541,7 @@ function OrderCard({ order, onDetails, onCancel, onReorder, highlightType }) {
       <p>{new Date(order.createdAt).toLocaleString()}</p>
       <div className="order-actions">
         <button className="btn subtle" onClick={onDetails}>Details</button>
+        {canPay ? <button className="btn accent" onClick={onPay}>Pay Now</button> : null}
         {onCancel ? <button className="btn subtle" onClick={onCancel}>Cancel</button> : null}
         <button className="btn subtle" onClick={onReorder}>Reorder</button>
       </div>
