@@ -856,10 +856,10 @@ async function handleApi(req, res, urlObj) {
 
     const id = makeId("user");
     await pool.query(
-      "INSERT INTO users (id, name, username, email, password_hash) VALUES ($1,$2,$3,$4,$5)",
-      [id, displayName || username, username, email, hashPassword(password)]
+      "INSERT INTO users (id, name, username, email, password_hash, phone) VALUES ($1,$2,$3,$4,$5,$6)",
+      [id, displayName || username, username, email, hashPassword(password), String(body.phone || "").trim()]
     );
-    return sendJson(res, 201, { ok: true, user: { id, name: displayName || username, username, email } });
+    return sendJson(res, 201, { ok: true, user: { id, name: displayName || username, username, email, phone: String(body.phone || "").trim(), address: "", defaultPaymentMode: "" } });
 
   }
 
@@ -876,7 +876,7 @@ async function handleApi(req, res, urlObj) {
     const slugId = slugifyUsername(identifier);
 
     const user = await queryOne(
-      `SELECT id, name, username, email, password_hash
+      `SELECT id, name, username, email, password_hash, phone, address, default_payment_mode
        FROM users
        WHERE LOWER(username) = $1
           OR LOWER(email) = $1
@@ -902,9 +902,101 @@ async function handleApi(req, res, urlObj) {
         id: user.id,
         name: user.name || user.username || identifier,
         username: user.username,
-        email: user.email
+        email: user.email,
+        phone: user.phone || "",
+        address: user.address || "",
+        defaultPaymentMode: user.default_payment_mode || ""
       }
     });
+  }
+
+  if (method === "GET" && pathname === "/api/profile") {
+    const userId = String(urlObj.searchParams.get("userId") || "").trim();
+    if (!userId) return sendError(res, 400, "userId is required.");
+    const user = await queryOne("SELECT id, name, username, email, phone, address, default_payment_mode FROM users WHERE id = $1", [userId]);
+    if (!user) return sendError(res, 404, "User not found.");
+    return sendJson(res, 200, {
+      ok: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+        phone: user.phone || "",
+        address: user.address || "",
+        defaultPaymentMode: user.default_payment_mode || ""
+      }
+    });
+  }
+
+  if (method === "PATCH" && pathname === "/api/profile") {
+    const body = await parseBody(req);
+    const userId = String(body.userId || "").trim();
+    if (!userId) return sendError(res, 400, "userId is required.");
+    const { name, phone, address, defaultPaymentMode } = body;
+    const user = await queryOne("SELECT id FROM users WHERE id = $1", [userId]);
+    if (!user) return sendError(res, 404, "User not found.");
+
+    await pool.query(
+      `UPDATE users SET
+        name = COALESCE($2, name),
+        phone = COALESCE($3, phone),
+        address = COALESCE($4, address),
+        default_payment_mode = COALESCE($5, default_payment_mode)
+       WHERE id = $1`,
+      [userId, name, phone, address, defaultPaymentMode]
+    );
+
+    const updated = await queryOne("SELECT id, name, username, email, phone, address, default_payment_mode FROM users WHERE id = $1", [userId]);
+    return sendJson(res, 200, {
+      ok: true,
+      user: {
+        id: updated.id,
+        name: updated.name,
+        username: updated.username,
+        email: updated.email,
+        phone: updated.phone || "",
+        address: updated.address || "",
+        defaultPaymentMode: updated.default_payment_mode || ""
+      }
+    });
+  }
+
+  if (method === "POST" && pathname === "/api/auth/reset-password") {
+    const body = await parseBody(req);
+    const identifier = String(body.identifier || "").trim();
+    const newPassword = String(body.newPassword || "");
+    if (!identifier || !newPassword) return sendError(res, 400, "Identifier and new password are required.");
+
+    const user = await queryOne("SELECT id, username FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1)", [identifier]);
+    if (!user) return sendError(res, 404, "User not found.");
+
+    const passwordError = validatePasswordStrength(newPassword, user.username);
+    if (passwordError) return sendError(res, 400, passwordError);
+
+    await pool.query("UPDATE users SET password_hash = $2 WHERE id = $1", [user.id, hashPassword(newPassword)]);
+    return sendJson(res, 200, { ok: true, message: "Password reset successful." });
+  }
+
+  if (method === "PATCH" && pathname === "/api/auth/change-password") {
+    const body = await parseBody(req);
+    const userId = String(body.userId || "").trim();
+    const oldPassword = String(body.oldPassword || "");
+    const newPassword = String(body.newPassword || "");
+    if (!userId || !oldPassword || !newPassword) return sendError(res, 400, "All fields are required.");
+
+    const user = await queryOne("SELECT id, username, password_hash FROM users WHERE id = $1", [userId]);
+    if (!user) return sendError(res, 404, "User not found.");
+
+    if (!verifyPassword(oldPassword, user.password_hash)) {
+      return sendError(res, 401, "Incorrect current password.");
+    }
+
+    const passwordError = validatePasswordStrength(newPassword, user.username);
+    if (passwordError) return sendError(res, 400, passwordError);
+
+    await pool.query("UPDATE users SET password_hash = $2 WHERE id = $1", [userId, hashPassword(newPassword)]);
+    return sendJson(res, 200, { ok: true, message: "Password updated successfully." });
   }
 
 

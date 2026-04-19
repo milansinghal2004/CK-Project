@@ -1,6 +1,45 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 
+function CustomSelect({ value, onChange, options, className }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedLabel = options.find(o => String(o.value) === String(value))?.label || value;
+
+  return (
+    <div className={`custom-select-wrap ${className || ""}`} ref={containerRef}>
+      <div className={`select-trigger ${isOpen ? "active" : ""}`} onClick={() => setIsOpen(!isOpen)}>
+        <span>{selectedLabel}</span>
+        <span className="select-chevron">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </span>
+      </div>
+      {isOpen && (
+        <div className="select-options-card">
+          {options.map((opt) => (
+            <div 
+              key={opt.value} 
+              className={`select-option ${String(opt.value) === String(value) ? "selected" : ""}`}
+              onClick={() => { onChange({ target: { value: opt.value } }); setIsOpen(false); }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CustomerApp() {
   const [apiBase, setApiBase] = useState(window.location.origin);
   const [notice, setNotice] = useState("");
@@ -20,6 +59,13 @@ export function CustomerApp() {
   const [paymentConfig, setPaymentConfig] = useState({ provider: "mock", currency: "INR", upiEnabled: false, upiReceiverVpa: "", upiReceiverName: "Cloud Kitchen" });
   const [paymentPortal, setPaymentPortal] = useState({ open: false, orderId: "", session: null, processing: false, error: "" });
   const [upiReference, setUpiReference] = useState("");
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
+  function getInitials(name) {
+    if (!name) return "?";
+    const parts = name.split(" ");
+    return (parts[0]?.[0] || "") + (parts[1]?.[0] || "");
+  }
   const [user, setUser] = useState(loadStoredUser());
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderSupport, setOrderSupport] = useState([]);
@@ -70,7 +116,7 @@ export function CustomerApp() {
       const payload = safeJson(evt.data);
       const orderId = payload?.orderId || selectedOrder?.id;
       if (orderId) markOrderUpdated(orderId, "support");
-      if (selectedOrder?.id) await loadSupport(selectedOrder.id);
+      if (selectedOrder?.id) await loadSupport(orderId);
       flash("Support ticket updated");
     });
 
@@ -135,9 +181,11 @@ export function CustomerApp() {
     setCheckout((prev) => ({
       ...prev,
       name: prev.name || user?.name || "",
-      phone: prev.phone || savedPhone
+      phone: prev.phone || user?.phone || savedPhone,
+      address: prev.address || user?.address || "",
+      paymentMode: prev.paymentMode || user?.defaultPaymentMode || "COD"
     }));
-  }, [user?.name]);
+  }, [user]);
 
   function markOrderUpdated(orderId, type) {
     setUpdatedOrders((prev) => ({ ...prev, [orderId]: type }));
@@ -577,7 +625,6 @@ export function CustomerApp() {
       setAuthForm({ username: "", password: "", email: "", name: "" });
       setShowPassword(false);
       
-      // Load orders immediately with the new user data to avoid state lag
       await loadOrders(null, data.user);
       flash(`${authMode === "register" ? "Account created" : "Login successful"}`);
     } catch (error) {
@@ -590,6 +637,7 @@ export function CustomerApp() {
   function logout() {
     setUser(null);
     localStorage.removeItem("ck_user");
+    setShowProfileDropdown(false);
     loadOrders();
     flash("Logged out");
   }
@@ -714,12 +762,37 @@ export function CustomerApp() {
             <Link to="/specials">Specials</Link>
             <Link to="/orders">Orders</Link>
             <Link to="/payments">Payments</Link>
-            <a href="#contact">Contact</a>
           </nav>
           <div className="topbar-actions">
             <button className="btn subtle" onClick={() => navigate("/orders")}>My Orders</button>
-            <button className="btn subtle" onClick={() => (user ? logout() : setShowAuth(true))}>{user ? `Hi, ${user.name?.split(" ")[0]}` : "Sign in"}</button>
             <button className="btn accent" onClick={() => setShowCart(true)}>Cart {cartCount}</button>
+            {user ? (
+              <div className="header-profile-container">
+                <div 
+                  className="profile-avatar-circle" 
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  title={user.name}
+                >
+                  {getInitials(user.name)}
+                  <div className="profile-hover-name">{user.name}</div>
+                </div>
+                {showProfileDropdown && (
+                  <div className="profile-dropdown-menu">
+                    <div className="dropdown-user-info">
+                      <strong>{user.name}</strong>
+                      <span>{user.email || user.username}</span>
+                    </div>
+                    <div className="dropdown-divider"></div>
+                    <Link to="/profile" className="dropdown-item" onClick={() => setShowProfileDropdown(false)}>Edit Profile</Link>
+                    <Link to="/orders" className="dropdown-item" onClick={() => setShowProfileDropdown(false)}>My Orders</Link>
+                    <div className="dropdown-divider"></div>
+                    <button className="dropdown-item signout" onClick={logout}>Sign Out</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button className="btn subtle" onClick={() => setShowAuth(true)}>Sign in</button>
+            )}
           </div>
         </div>
       </header>
@@ -821,8 +894,18 @@ export function CustomerApp() {
                 checkout={checkout}
                 setCheckout={setCheckout}
                 checkoutOrder={checkoutOrder}
-                paymentConfig={paymentConfig}
                 isPaying={isPaying}
+              />
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProfilePage
+                user={user}
+                setUser={setUser}
+                api={api}
+                flash={flash}
               />
             }
           />
@@ -957,11 +1040,33 @@ export function CustomerApp() {
 
               <form
                 className="checkout auth-form"
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
+                  if (authMode === "reset") {
+                    setIsAuthLoading(true);
+                    try {
+                      await api("/api/auth/reset-password", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ identifier: authForm.username, newPassword: authForm.password })
+                      });
+                      flash("Password reset successful. Please login.");
+                      setAuthMode("login");
+                    } catch (err) {
+                      flash(err.message, "error");
+                    } finally {
+                      setIsAuthLoading(false);
+                    }
+                    return;
+                  }
                   submitAuth();
                 }}
               >
+                {authMode === "reset" && (
+                   <p style={{ marginBottom: "1rem", fontSize: "0.9rem", color: "#6c655f" }}>
+                     Enter your username/email and the new password you'd like to set.
+                   </p>
+                )}
                 {authMode === "register" && (
                   <>
                     <input
@@ -1012,10 +1117,24 @@ export function CustomerApp() {
                 </button>
                 
                 <p className="auth-footer">
-                  {authMode === "login" ? "Don't have an account?" : "Already have an account?"}
-                  <button type="button" className="text-btn" onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}>
+                  {authMode === "login" ? "Don't have an account?" : authMode === "register" ? "Already have an account?" : ""}
+                  <button 
+                    type="button" 
+                    className="text-btn" 
+                    onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}
+                  >
                     {authMode === "login" ? "Register here" : "Sign in here"}
                   </button>
+                  {authMode === "login" && (
+                    <button 
+                      type="button" 
+                      className="text-btn forgot-pw" 
+                      onClick={() => setAuthMode("reset")}
+                      style={{ display: "block", marginTop: "0.5rem" }}
+                    >
+                      Forgot Password?
+                    </button>
+                  )}
                 </p>
 
                 <div className="admin-access-row">
@@ -1210,10 +1329,116 @@ export function CustomerApp() {
   );
 }
 
-function HomePage({ apiBase, todaysSpecial, addToCart }) {
+function ProfilePage({ user, setUser, api, flash }) {
+  const [form, setForm] = useState({
+    name: user?.name || "",
+    phone: user?.phone || "",
+    address: user?.address || "",
+    defaultPaymentMode: user?.defaultPaymentMode || "COD"
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [pwForm, setPwForm] = useState({ oldPassword: "", newPassword: "" });
+  const [isSavingPw, setIsSavingPw] = useState(false);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const data = await api("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, ...form })
+      });
+      setUser(data.user);
+      localStorage.setItem("ck_user", JSON.stringify(data.user));
+      flash("Profile updated successfully");
+    } catch (err) {
+      flash(err.message, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handlePasswordChange(e) {
+    e.preventDefault();
+    setIsSavingPw(true);
+    try {
+      await api("/api/auth/change-password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, ...pwForm })
+      });
+      setPwForm({ oldPassword: "", newPassword: "" });
+      flash("Password updated successfully");
+    } catch (err) {
+      flash(err.message, "error");
+    } finally {
+      setIsSavingPw(false);
+    }
+  }
+
+  if (!user) return <Navigate to="/" />;
+
+  return (
+    <section className="section container profile-page">
+      <div className="section-head">
+        <div>
+          <p className="kicker">Personal Settings</p>
+          <h2>My Profile</h2>
+        </div>
+      </div>
+
+      <div className="profile-grid">
+        <form className="profile-card" onSubmit={handleSave}>
+          <h3>Basic Information</h3>
+          <div className="checkout-field">
+            <label>Full Name</label>
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="checkout-field">
+            <label>Phone Number</label>
+            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div className="checkout-field">
+            <label>Delivery Address</label>
+            <textarea rows={3} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          </div>
+          <div className="checkout-field">
+            <label>Default Payment</label>
+            <CustomSelect 
+              value={form.defaultPaymentMode} 
+              onChange={(e) => setForm({ ...form, defaultPaymentMode: e.target.value })}
+              options={[
+                { value: "COD", label: "Cash on Delivery" },
+                { value: "UPI", label: "UPI (Online)" },
+                { value: "CARD", label: "Card (Online)" }
+              ]}
+            />
+          </div>
+          <button className="btn accent full" type="submit" disabled={isSaving}>{isSaving ? "Saving..." : "Update Profile"}</button>
+        </form>
+
+        <form className="profile-card" onSubmit={handlePasswordChange}>
+          <h3>Security</h3>
+          <div className="checkout-field">
+            <label>Current Password</label>
+            <input type="password" value={pwForm.oldPassword} onChange={(e) => setPwForm({ ...pwForm, oldPassword: e.target.value })} />
+          </div>
+          <div className="checkout-field">
+            <label>New Password</label>
+            <input type="password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} />
+          </div>
+          <button className="btn subtle full" type="submit" disabled={isSavingPw}>{isSavingPw ? "Updating..." : "Change Password"}</button>
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function HomePage({ apiBase, addToCart }) {
   return (
     <section id="home" className="hero-landing">
-      <div className="container hero-inner">
+      <div className="container hero-inner hero-blur-box">
         <div className="hero-copy">
           <p className="kicker">Fast delivery. Premium flavor.</p>
           <h1>Freshly cooked food for every craving.</h1>
@@ -1287,7 +1512,7 @@ function UnifiedHomePage(props) {
   return (
     <>
       <HomePage apiBase={props.apiBase} todaysSpecial={props.todaysSpecial} addToCart={props.addToCart} />
-      <MenuPage
+      <LandingMenu
         menu={props.menu}
         categories={props.categories}
         search={props.search}
@@ -1302,19 +1527,27 @@ function UnifiedHomePage(props) {
   );
 }
 
-function MenuPage({ menu, categories, search, setSearch, category, setCategory, addToCart, apiBase }) {
+function LandingMenu({ menu, categories, search, setSearch, category, setCategory, addToCart, apiBase }) {
   return (
     <section id="menu" className="section container">
       <div className="section-head">
         <div>
           <p className="kicker">Popular this week</p>
-          <h2>Menu</h2>
+          <h2>Explore our Menu</h2>
         </div>
-        <div className="menu-tools">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dishes..." />
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+        <div className="landing-actions">
+          <input 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+            placeholder="Search favorites..." 
+            className="landing-search"
+          />
+          <CustomSelect 
+            value={category} 
+            onChange={(e) => setCategory(e.target.value)}
+            className="landing-select"
+            options={categories.map(c => ({ value: c, label: c }))}
+          />
         </div>
       </div>
       <div className="menu-grid">
@@ -1322,10 +1555,16 @@ function MenuPage({ menu, categories, search, setSearch, category, setCategory, 
           <article className="dish-card" key={item.id}>
             <img className="dish-image" src={`${apiBase}${item.image}`} alt={item.name} />
             <div className="dish-body">
-              <div className="dish-head"><h4>{item.name}</h4><span className="rating">* {item.rating}</span></div>
+              <div className="dish-head">
+                <h4>{item.name}</h4>
+                <span className="rating">★ {item.rating}</span>
+              </div>
               <p className="dish-desc">{item.description}</p>
-              <div className="dish-meta"><strong className="price">Rs {item.price}</strong><span className="prep">{item.prepMinutes} mins</span></div>
-              <button className="btn accent" onClick={() => addToCart(item.id)}>Add to cart</button>
+              <div className="dish-meta">
+                <strong className="price">Rs {item.price}</strong>
+                <span className="prep">{item.prepMinutes} mins</span>
+              </div>
+              <button className="btn accent full" onClick={() => addToCart(item.id)}>Add to cart</button>
             </div>
           </article>
         ))}
@@ -1334,9 +1573,114 @@ function MenuPage({ menu, categories, search, setSearch, category, setCategory, 
   );
 }
 
+function MenuPage({ menu, categories, search, setSearch, category, setCategory, addToCart, apiBase }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const categoryIcons = {
+    "Main Course": (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 12h18M3 12c0-4.4 3.6-8 8-8s8 3.6 8 8M3 12c0 4.4 3.6 8 8 8s8-3.6 8-8" />
+        <path d="M12 4v4m0 8v4M4 12h4m8 0h4" />
+      </svg>
+    ),
+    "Snacks": (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="10" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+    ),
+    "Beverages": (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
+        <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z" />
+        <line x1="6" y1="2" x2="6" y2="4" />
+        <line x1="10" y1="2" x2="10" y2="4" />
+        <line x1="14" y1="2" x2="14" y2="4" />
+      </svg>
+    ),
+    "Desserts": (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m12 2 4 10-4 10-4-10z" />
+      </svg>
+    ),
+    "All": (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" />
+        <rect x="14" y="3" width="7" height="7" />
+        <rect x="14" y="14" width="7" height="7" />
+        <rect x="3" y="14" width="7" height="7" />
+      </svg>
+    )
+  };
+
+  return (
+    <section id="menu" className="menu-container-new">
+      <aside className={`menu-sidebar-sticky ${isExpanded ? "expanded" : "collapsed"}`}>
+        <div className="sidebar-logo">
+          <button className="hamburger-btn" onClick={() => setIsExpanded(!isExpanded)}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          {isExpanded && <strong>Categories</strong>}
+        </div>
+        <nav className="sidebar-nav">
+          {categories.map((c) => (
+            <button
+              key={c}
+              className={`sidebar-item ${category === c ? "active" : ""}`}
+              onClick={() => setCategory(c)}
+            >
+              <span className="sidebar-icon">{categoryIcons[c] || categoryIcons["All"]}</span>
+              <span className="sidebar-label">{c}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <main className="menu-content-new">
+        <div className="menu-header-new">
+          <div>
+            <p className="kicker">{category === "All" ? "Kitchen spotlight" : category}</p>
+            <h2>{category === "All" ? "Our Signature Menu" : `Best of ${category}`}</h2>
+          </div>
+          <div className="menu-search-new">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search for dishes..."
+            />
+          </div>
+        </div>
+
+        <div className="menu-grid">
+          {menu.map((item) => (
+            <article className="dish-card" key={item.id}>
+              <img className="dish-image" src={`${apiBase}${item.image}`} alt={item.name} />
+              <div className="dish-body">
+                <div className="dish-head">
+                  <h4>{item.name}</h4>
+                  <span className="rating">★ {item.rating}</span>
+                </div>
+                <p className="dish-desc">{item.description}</p>
+                <div className="dish-meta">
+                  <strong className="price">Rs {item.price}</strong>
+                  <span className="prep">{item.prepMinutes} mins</span>
+                </div>
+                <button className="btn accent full" onClick={() => addToCart(item.id)}>Add to cart</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </main>
+    </section>
+  );
+}
+
 function OrdersPage({ orders, openDetails, requestCancel, reorderOrder, updatedOrders, refreshOrders, beginPaymentForOrder, apiBase }) {
   return (
-    <section id="orders" className="section container">
+    <section id="orders" className="section container" style={{ paddingTop: "2rem" }}>
       <div className="section-head">
         <div>
           <p className="kicker">Track your food</p>
@@ -1546,13 +1890,15 @@ function CartBody({ cart, apiBase, updateQty, offerCode, setOfferCode, applyOffe
         </div>
         <div className="checkout-field">
           <label>Payment Method</label>
-          <div className="select-wrapper">
-            <select value={checkout.paymentMode} onChange={(e) => setCheckout((c) => ({ ...c, paymentMode: e.target.value }))}>
-              <option value="COD">Cash on Delivery</option>
-              <option value="UPI">UPI (Online)</option>
-              <option value="CARD">Card (Online)</option>
-            </select>
-          </div>
+          <CustomSelect 
+            value={checkout.paymentMode} 
+            onChange={(e) => setCheckout((c) => ({ ...c, paymentMode: e.target.value }))}
+            options={[
+              { value: "COD", label: "Cash on Delivery" },
+              { value: "UPI", label: "UPI (Online)" },
+              { value: "CARD", label: "Card (Online)" }
+            ]}
+          />
         </div>
         {String(checkout.paymentMode).toUpperCase() !== "COD" ? (
           <small style={{ color: "#6c655f" }}>
