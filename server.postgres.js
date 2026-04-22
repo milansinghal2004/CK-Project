@@ -932,10 +932,18 @@ async function handleApi(req, res, urlObj) {
   if (method === "PATCH" && pathname === "/api/profile") {
     const body = await parseBody(req);
     const userId = String(body.userId || "").trim();
-    if (!userId) return sendError(res, 400, "userId is required.");
+    if (!userId) {
+      console.log("[PROFILE] Update failed: userId missing");
+      return sendError(res, 400, "userId is required.");
+    }
     const { name, phone, address, defaultPaymentMode } = body;
+    console.log(`[PROFILE] Updating user ${userId}:`, { name, phone, address, defaultPaymentMode });
+    
     const user = await queryOne("SELECT id FROM users WHERE id = $1", [userId]);
-    if (!user) return sendError(res, 404, "User not found.");
+    if (!user) {
+      console.log(`[PROFILE] Update failed: User ${userId} not found`);
+      return sendError(res, 404, "User not found.");
+    }
 
     await pool.query(
       `UPDATE users SET
@@ -944,10 +952,11 @@ async function handleApi(req, res, urlObj) {
         address = COALESCE($4, address),
         default_payment_mode = COALESCE($5, default_payment_mode)
        WHERE id = $1`,
-      [userId, name, phone, address, defaultPaymentMode]
+      [userId, name || null, phone || null, address || null, defaultPaymentMode || null]
     );
 
     const updated = await queryOne("SELECT id, name, username, email, phone, address, default_payment_mode FROM users WHERE id = $1", [userId]);
+    console.log(`[PROFILE] User ${userId} updated successfully.`);
     return sendJson(res, 200, {
       ok: true,
       user: {
@@ -1106,14 +1115,45 @@ async function handleApi(req, res, urlObj) {
     return sendJson(res, 200, { ok: true });
   }
 
+  if (method === "DELETE" && pathname === "/api/cart") {
+    const sessionId = String(urlObj.searchParams.get("sessionId") || "").trim();
+    if (!sessionId) return sendError(res, 400, "sessionId is required.");
+    await pool.query("DELETE FROM cart_items WHERE session_id = $1", [sessionId]);
+    emitRealtimeUpdate(sessionId, "cart_updated", { sessionId });
+    return sendJson(res, 200, { ok: true });
+  }
+
   if (method === "POST" && pathname === "/api/cart/offer") {
     const body = await parseBody(req);
     const sessionId = String(body.sessionId || "").trim();
     const offerCode = String(body.offerCode || "").trim().toUpperCase();
     if (!sessionId) return sendError(res, 400, "sessionId is required.");
+
+    // Validate offer before applying
+    const offer = await queryOne("SELECT * FROM offers WHERE code = $1 AND is_active = TRUE", [offerCode]);
+    if (!offer) {
+      return sendJson(res, 200, { ok: false, status: "invalid", message: "Invalid or expired coupon code." });
+    }
+
+    // Check cart value
+    const itemsRes = await pool.query(
+      "SELECT ci.quantity, m.price FROM cart_items ci JOIN menu_items m ON m.id = ci.item_id WHERE ci.session_id = $1",
+      [sessionId]
+    );
+    const subtotal = itemsRes.rows.reduce((s, i) => s + Number(i.price) * Number(i.quantity), 0);
+
+    if (subtotal < offer.min_order_value) {
+      return sendJson(res, 200, { 
+        ok: true, 
+        status: "not_met", 
+        message: `Min order value of ₹${offer.min_order_value} required for this coupon.` 
+      });
+    }
+
+    // Success - Apply to cart
     await pool.query("INSERT INTO carts (session_id, offer_code, updated_at) VALUES ($1,$2,NOW()) ON CONFLICT (session_id) DO UPDATE SET offer_code = EXCLUDED.offer_code, updated_at = NOW()", [sessionId, offerCode]);
     emitRealtimeUpdate(sessionId, "cart_updated", { sessionId });
-    return sendJson(res, 200, { ok: true });
+    return sendJson(res, 200, { ok: true, status: "valid", message: "Coupon applied successfully!" });
   }
 
   if (method === "POST" && pathname === "/api/checkout") {

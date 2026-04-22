@@ -141,6 +141,8 @@ export function CustomerApp() {
     return () => stream.close();
   }, [apiBase, sessionId, selectedOrder?.id]);
 
+  const [couponBlink, setCouponBlink] = useState(null); // 'green', 'red', 'yellow'
+
   useEffect(() => {
     function onKeyDown(event) {
       const target = event.target;
@@ -356,15 +358,44 @@ export function CustomerApp() {
     await loadCart();
   }
 
+  async function clearCart() {
+    if (!cart.items?.length) return;
+    try {
+      await api(`/api/cart?sessionId=${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+      await loadCart();
+      flash("Cart cleared");
+    } catch (e) {
+      flash("Failed to clear cart", "error");
+    }
+  }
+
   async function applyOffer() {
     if (!offerCode.trim()) return;
-    await api("/api/cart/offer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, offerCode: offerCode.trim() })
-    });
-    await loadCart();
-    flash("Offer applied");
+    try {
+      const data = await api("/api/cart/offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, offerCode: offerCode.trim() })
+      });
+      
+      if (data.status === "valid") {
+        setCouponBlink("green");
+        flash(data.message || "Offer applied");
+      } else if (data.status === "not_met") {
+        setCouponBlink("yellow");
+        flash(data.message, "warning");
+      } else {
+        setCouponBlink("red");
+        flash(data.message || "Invalid coupon", "error");
+      }
+      
+      setTimeout(() => setCouponBlink(null), 1800);
+      await loadCart();
+    } catch (e) {
+      setCouponBlink("red");
+      setTimeout(() => setCouponBlink(null), 1800);
+      flash("Failed to apply offer", "error");
+    }
   }
 
   async function checkoutOrder() {
@@ -820,6 +851,8 @@ export function CustomerApp() {
                 apiBase={apiBase}
                 todaysSpecial={todaysSpecial}
                 addToCart={addToCart}
+                updateQty={updateQty}
+                cart={cart}
                 menu={menu}
                 categories={categories}
                 search={search}
@@ -832,8 +865,6 @@ export function CustomerApp() {
                 reorderOrder={reorderOrder}
                 updatedOrders={updatedOrders}
                 refreshOrders={loadOrders}
-                cart={cart}
-                updateQty={updateQty}
                 offerCode={offerCode}
                 setOfferCode={setOfferCode}
                 applyOffer={applyOffer}
@@ -857,6 +888,8 @@ export function CustomerApp() {
                 category={category}
                 setCategory={setCategory}
                 addToCart={addToCart}
+                updateQty={updateQty}
+                cart={cart}
                 apiBase={apiBase}
               />
             }
@@ -1003,17 +1036,15 @@ export function CustomerApp() {
       {showCart ? (
         <>
           <aside className="cart-panel open">
-            <div className="cart-header">
-              <h3>Your Cart</h3>
-              <button className="icon-btn" onClick={() => setShowCart(false)}>X</button>
-            </div>
             <CartBody
               cart={cart}
               apiBase={apiBase}
               updateQty={updateQty}
+              clearCart={clearCart}
               offerCode={offerCode}
               setOfferCode={setOfferCode}
               applyOffer={applyOffer}
+              couponBlink={couponBlink}
               showOffers={showOffers}
               setShowOffers={setShowOffers}
               offers={offers}
@@ -1022,6 +1053,7 @@ export function CustomerApp() {
               checkoutOrder={checkoutOrder}
               paymentConfig={paymentConfig}
               isPaying={isPaying}
+              closeCart={() => setShowCart(false)}
             />
           </aside>
         <div className="backdrop show cart-panel-backdrop" onClick={() => setShowCart(false)} />
@@ -1571,6 +1603,8 @@ function UnifiedHomePage(props) {
         category={props.category}
         setCategory={props.setCategory}
         addToCart={props.addToCart}
+        updateQty={props.updateQty}
+        cart={props.cart}
         apiBase={props.apiBase}
       />
       <SpecialsPage apiBase={props.apiBase} todaysSpecial={props.todaysSpecial} addToCart={props.addToCart} />
@@ -1578,7 +1612,17 @@ function UnifiedHomePage(props) {
   );
 }
 
-function LandingMenu({ menu, categories, search, setSearch, category, setCategory, addToCart, apiBase }) {
+function CartQtyControl({ id, quantity, updateQty }) {
+  return (
+    <div className="qty-row-menu">
+      <button onClick={(e) => { e.stopPropagation(); updateQty(id, quantity - 1); }}>-</button>
+      <span>{quantity}</span>
+      <button onClick={(e) => { e.stopPropagation(); updateQty(id, quantity + 1); }}>+</button>
+    </div>
+  );
+}
+
+function LandingMenu({ menu, categories, search, setSearch, category, setCategory, addToCart, updateQty, cart, apiBase }) {
   return (
     <section id="menu" className="section container">
       <div className="section-head">
@@ -1609,7 +1653,14 @@ function LandingMenu({ menu, categories, search, setSearch, category, setCategor
                 <strong className="price">Rs {item.price}</strong>
                 <span className="prep">{item.prepMinutes} mins</span>
               </div>
-              <button className="btn accent full" onClick={() => addToCart(item.id)}>Add to cart</button>
+              {(() => {
+                const inCart = cart.items?.find(i => i.id === item.id);
+                return inCart ? (
+                  <CartQtyControl id={item.id} quantity={inCart.quantity} updateQty={updateQty} />
+                ) : (
+                  <button className="btn accent full" onClick={() => addToCart(item.id)}>Add to cart</button>
+                );
+              })()}
             </div>
           </article>
         ))}
@@ -1618,7 +1669,7 @@ function LandingMenu({ menu, categories, search, setSearch, category, setCategor
   );
 }
 
-function MenuPage({ menu, categories, search, setSearch, category, setCategory, addToCart, apiBase }) {
+function MenuPage({ menu, categories, search, setSearch, category, setCategory, addToCart, updateQty, cart, apiBase }) {
   const categoryIcons = {
     "Main Course": (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1713,7 +1764,14 @@ function MenuPage({ menu, categories, search, setSearch, category, setCategory, 
                   <strong className="price">Rs {item.price}</strong>
                   <span className="prep">{item.prepMinutes} mins</span>
                 </div>
-                <button className="btn accent full" onClick={() => addToCart(item.id)}>Add to cart</button>
+                {(() => {
+                  const inCart = cart.items?.find(i => i.id === item.id);
+                  return inCart ? (
+                    <CartQtyControl id={item.id} quantity={inCart.quantity} updateQty={updateQty} />
+                  ) : (
+                    <button className="btn accent full" onClick={() => addToCart(item.id)}>Add to cart</button>
+                  );
+                })()}
               </div>
             </article>
           ))}
@@ -1851,11 +1909,23 @@ function CheckoutPage(props) {
   );
 }
 
-function CartBody({ cart, apiBase, updateQty, offerCode, setOfferCode, applyOffer, showOffers, setShowOffers, offers, checkout, setCheckout, checkoutOrder, paymentConfig, isPaying }) {
+function CartBody({ cart, apiBase, updateQty, clearCart, offerCode, setOfferCode, applyOffer, couponBlink, showOffers, setShowOffers, offers, checkout, setCheckout, checkoutOrder, paymentConfig, isPaying, closeCart }) {
   return (
     <>
+      <div className="cart-drawer-header">
+        <div className="cart-header-title">
+          <h3>Your Cart</h3>
+          {cart.items?.length > 0 && (
+            <button className="empty-cart-btn" onClick={clearCart}>
+              Empty Cart
+            </button>
+          )}
+        </div>
+        <button className="close-btn" onClick={closeCart}>&times;</button>
+      </div>
+
       <section className="cart-block">
-        <h4>Items in cart</h4>
+        <p className="kicker">Items in cart</p>
         <div className="cart-items" style={{ maxHeight: "32vh" }}>
         {(cart.items || []).map((item) => (
           <div className="cart-item" key={item.id}>
@@ -1884,7 +1954,9 @@ function CartBody({ cart, apiBase, updateQty, offerCode, setOfferCode, applyOffe
         }}
       >
         <input value={offerCode} onChange={(e) => setOfferCode(e.target.value)} placeholder="Apply offer code" />
-        <button className="btn subtle" type="submit">Apply</button>
+        <button className={`btn accent ${couponBlink ? `blink-${couponBlink}` : ""}`} type="submit">
+          Apply
+        </button>
       </form>
       <button className="btn subtle full" onClick={() => setShowOffers((s) => !s)}>{showOffers ? "Hide Offers" : "Avail Offers"}</button>
       {showOffers ? (
