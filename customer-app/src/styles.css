@@ -8,6 +8,11 @@
   --glass: rgba(255, 255, 255, 0.75);
   --radius-pm: 24px;
   --shadow-pm: 0 12px 34px rgba(0, 0, 0, 0.06);
+  
+  /* Added Missing variables for Dish Cards */
+  --card: #ffffff;
+  --radius: 1.25rem;
+  --shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
 }
 
 * {
@@ -493,8 +498,8 @@ select {
 
 .menu-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
 }
 
 .dish-card {
@@ -503,6 +508,12 @@ select {
   overflow: hidden;
   box-shadow: var(--shadow);
   border: 1px solid #f8ede3;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dish-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
 }
 
 .dish-image {
@@ -2501,7 +2512,7 @@ dialog::backdrop {
     display: flex;
     gap: 0;
     background: #fafafa;
-    padding: 3.8rem 0 2rem; /* Exactly match .section margin-top for Specials */
+    padding: 3.8rem 0 2rem 100px; /* Leave space for fixed sidebar */
     min-height: 100vh;
   }
 
@@ -2517,20 +2528,21 @@ dialog::backdrop {
   }
 
   .menu-sidebar-sticky {
-    position: sticky;
-    top: 25%; /* Anchored higher as requested */
-    left: 2rem;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(15px);
-    padding: 1.5rem 1rem;
-    border-radius: 2rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
-    z-index: 100;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: fixed;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #ffffff;
+    padding: 1.5rem 0.75rem;
+    border-radius: 100px;
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.08);
+    z-index: 1000;
+    border: 1px solid rgba(0, 0, 0, 0.03);
     display: flex;
     flex-direction: column;
-    align-self: flex-start; /* Ensure it sticks to the 25% anchor */
+    width: 64px;
+    align-items: center;
+    gap: 1rem;
   }
 
   .menu-sidebar-sticky.collapsed {
@@ -2541,63 +2553,36 @@ dialog::backdrop {
     width: 260px;
   }
 
-  .sidebar-logo {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0 0.5rem 1.5rem 0.5rem;
-    font-size: 1.1rem;
-    color: #1e1e1e;
-    letter-spacing: 0.05rem;
-    text-transform: uppercase;
-  }
-
-  .hamburger-btn {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #1e1e1e;
-    transition: background 0.3s ease;
-  }
-
-  .hamburger-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-  }
-
   .sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 1rem;
+    width: 100%;
+    align-items: center;
   }
 
   .sidebar-item {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 1.25rem;
-    width: 100%;
-    padding: 0.85rem 1.25rem;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
     border: none;
     background: transparent;
-    border-radius: 1.25rem;
+    border-radius: 16px;
     color: #6c655f;
     cursor: pointer;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    text-align: left;
-    font-weight: 500;
-    overflow: hidden;
-    white-space: nowrap;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: visible; /* Allow label to show outside */
   }
 
-  .menu-sidebar-sticky.collapsed .sidebar-item {
+  .sidebar-icon-wrap {
+    display: flex;
+    align-items: center;
     justify-content: center;
-    padding-left: 0;
-    padding-right: 0;
-    gap: 0;
+    width: 100%;
+    height: 100%;
   }
 
   .sidebar-item:hover {
@@ -2608,35 +2593,56 @@ dialog::backdrop {
   .sidebar-item.active {
     background: #ef4444;
     color: #fff;
-    box-shadow: 0 10px 20px rgba(239, 68, 68, 0.2);
+    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.25);
   }
 
   .sidebar-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     flex-shrink: 0;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    font-size: 1.2rem;
-  }
-
-  .sidebar-item:hover .sidebar-icon {
-    transform: scale(1.1);
+    transition: transform 0.3s ease;
   }
 
   .sidebar-label {
-    opacity: 1;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    transition-delay: 0.1s;
+    position: absolute;
+    left: 60px;
+    background: #1e1e1e;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
     white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
   }
 
-  .collapsed .sidebar-label {
-    opacity: 0;
-    pointer-events: none;
-    transition-delay: 0s;
+  /* Triangle pointer for label */
+  .sidebar-label::after {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 6px solid transparent;
+    border-right-color: #1e1e1e;
+  }
+
+  .sidebar-item:hover .sidebar-label {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+  }
+
+  .sidebar-item:hover .sidebar-icon {
+    transform: scale(1.15);
   }
 
   .menu-content-new {

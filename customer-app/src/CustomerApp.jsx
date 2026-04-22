@@ -1619,7 +1619,6 @@ function LandingMenu({ menu, categories, search, setSearch, category, setCategor
 }
 
 function MenuPage({ menu, categories, search, setSearch, category, setCategory, addToCart, apiBase }) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const categoryIcons = {
     "Main Course": (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1657,28 +1656,29 @@ function MenuPage({ menu, categories, search, setSearch, category, setCategory, 
     )
   };
 
+  // Improved icon lookup (case-insensitive and trimmed)
+  const getIcon = (cat) => {
+    const normalized = String(cat || "").trim();
+    return categoryIcons[normalized] || categoryIcons["All"];
+  };
+
+  // Filter out invalid/stray categories e.g. stray commas from data
+  const validCategories = categories.filter(c => c && String(c).trim() && String(c).trim() !== ",");
+
   return (
     <section id="menu" className="menu-container-new">
-      <aside className={`menu-sidebar-sticky ${isExpanded ? "expanded" : "collapsed"}`}>
-        <div className="sidebar-logo">
-          <button className="hamburger-btn" onClick={() => setIsExpanded(!isExpanded)}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
-          {isExpanded && <strong>Categories</strong>}
-        </div>
+      <aside className="menu-sidebar-sticky">
         <nav className="sidebar-nav">
-          {categories.map((c) => (
+          {validCategories.map((c) => (
             <button
               key={c}
               className={`sidebar-item ${category === c ? "active" : ""}`}
               onClick={() => setCategory(c)}
             >
-              <span className="sidebar-icon">{categoryIcons[c] || categoryIcons["All"]}</span>
-              <span className="sidebar-label">{c}</span>
+              <div className="sidebar-icon-wrap">
+                <span className="sidebar-icon">{getIcon(c)}</span>
+                <span className="sidebar-label">{c}</span>
+              </div>
             </button>
           ))}
         </nav>
