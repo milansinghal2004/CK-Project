@@ -62,6 +62,12 @@ export function CustomerApp() {
   const [paymentPortal, setPaymentPortal] = useState({ open: false, orderId: "", session: null, processing: false, error: "" });
   const [upiReference, setUpiReference] = useState("");
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("pending"); // 'all', 'pending', 'completed'
+  const [paymentPriceRange, setPaymentPriceRange] = useState("all"); // 'all', 'under500', '500-1000', '1000-2500', 'above2500'
+  const [paymentSort, setPaymentSort] = useState("newest"); // 'newest', 'oldest', 'priceHigh', 'priceLow'
+  const [paymentDateSearch, setPaymentDateSearch] = useState(""); // Calendar search
+  const [paymentTimer, setPaymentTimer] = useState(0); // seconds remaining
 
   function getInitials(name) {
     if (!name) return "?";
@@ -76,7 +82,7 @@ export function CustomerApp() {
   const [authForm, setAuthForm] = useState({ username: "", password: "", email: "", name: "" });
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [cancelDraft, setCancelDraft] = useState({ open: false, orderId: "", reason: "Changed my mind" });
+  const [cancelDraft, setCancelDraft] = useState({ open: false, orderId: "", reason: "Changed my mind", fee: 0, step: "REASON", txnId: "" });
   const [supportDraft, setSupportDraft] = useState("");
   const [replyDrafts, setReplyDrafts] = useState({});
   const [updatedOrders, setUpdatedOrders] = useState({});
@@ -202,6 +208,25 @@ export function CustomerApp() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [showCart, showAuth, selectedOrder, cancelDraft.open, cancelDraft.reason, paymentPortal.open, applyOffer]);
+
+  useEffect(() => {
+    let interval;
+    if (paymentPortal.open && paymentTimer > 0) {
+      interval = setInterval(() => {
+        setPaymentTimer(prev => prev - 1);
+      }, 1000);
+    } else if (paymentTimer === 0 && paymentPortal.open) {
+      // Timer expired logic could go here if needed, 
+      // but we handle it in the UI by checking paymentTimer === 0
+    }
+    return () => clearInterval(interval);
+  }, [paymentPortal.open, paymentTimer]);
+
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     const savedPhone = localStorage.getItem("ck_last_phone") || "";
@@ -479,6 +504,7 @@ export function CustomerApp() {
   async function completePaymentFlow(orderId, session) {
     if (session.provider === "mock" || session.provider === "upi_qr") {
       setUpiReference("");
+      setPaymentTimer(300); // 5 minutes
       setPaymentPortal({ open: true, orderId, session, processing: false, error: "" });
       const result = await new Promise((resolve) => {
         paymentResolveRef.current = resolve;
@@ -721,10 +747,22 @@ export function CustomerApp() {
   }
 
   function requestCancel(orderId) {
-    setCancelDraft({ open: true, orderId, reason: "Changed my mind" });
+    const all = [...(orders.currentOrders || []), ...(orders.pastOrders || [])];
+    const order = all.find(o => o.id === orderId);
+    let fee = 0;
+    if (order) {
+      const total = order.pricing?.total || 0;
+      if (order.status === "Preparing") fee = Math.max(20, Math.round(total * 0.05));
+      if (order.status === "Out for Delivery") fee = Math.max(50, Math.round(total * 0.15));
+    }
+    setCancelDraft({ open: true, orderId, reason: "Changed my mind", fee, step: "REASON" });
   }
 
   async function confirmCancel() {
+    if (cancelDraft.fee > 0 && !cancelDraft.txnId) {
+      flash("Please enter Transaction ID", "error");
+      return;
+    }
     await api(`/api/orders/${cancelDraft.orderId}/cancel`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -732,13 +770,14 @@ export function CustomerApp() {
         sessionId,
         userId: user?.id || "",
         phone: localStorage.getItem("ck_last_phone") || "",
-        reason: cancelDraft.reason || "Cancelled by user"
+        reason: cancelDraft.reason || "Cancelled by user",
+        txnId: cancelDraft.txnId
       })
     });
-    setCancelDraft({ open: false, orderId: "", reason: "Changed my mind" });
+    setCancelDraft({ open: false, orderId: "", reason: "Changed my mind", txnId: "" });
     await loadOrders();
     if (selectedOrder?.id) await openOrderDetails(selectedOrder.id);
-    flash("Order cancelled");
+    flash(cancelDraft.fee > 0 ? "Cancellation request sent for approval" : "Order cancelled");
   }
 
   async function reorderOrder(orderId) {
@@ -955,6 +994,16 @@ export function CustomerApp() {
                 openDetails={openOrderDetails}
                 isPaying={isPaying}
                 refreshOrders={loadOrders}
+                paymentSearch={paymentSearch}
+                setPaymentSearch={setPaymentSearch}
+                paymentFilter={paymentFilter}
+                setPaymentFilter={setPaymentFilter}
+                paymentPriceRange={paymentPriceRange}
+                setPaymentPriceRange={setPaymentPriceRange}
+                paymentSort={paymentSort}
+                setPaymentSort={setPaymentSort}
+                paymentDateSearch={paymentDateSearch}
+                setPaymentDateSearch={setPaymentDateSearch}
               />
             }
           />
@@ -1095,7 +1144,7 @@ export function CustomerApp() {
 
       {showAuth ? (
         <div className="backdrop show" onClick={() => (isAuthLoading ? null : setShowAuth(false))}>
-          <div className="modal auth-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal auth-modal theme-modal" onClick={(e) => e.stopPropagation()}>
             <div className="auth-tabs">
               <button 
                 className={`auth-tab ${authMode === "login" ? "active" : ""}`} 
@@ -1229,7 +1278,7 @@ export function CustomerApp() {
 
       {selectedOrder ? (
         <div className="backdrop show" onClick={() => setSelectedOrder(null)}>
-          <div className="modal order-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal order-modal theme-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Order Details</h3>
               <button className="close-btn" onClick={() => setSelectedOrder(null)}>&times;</button>
@@ -1240,6 +1289,9 @@ export function CustomerApp() {
               <p><strong>Status:</strong> {selectedOrder.status}</p>
               <p><strong>Payment:</strong> {selectedOrder.paymentMode} ({selectedOrder.paymentStatus || "Pending"})</p>
               <p><strong>Total:</strong> Rs {selectedOrder.pricing?.total}</p>
+              {selectedOrder.pricing?.cancellationFee > 0 && (
+                <p style={{ color: "#ef4444" }}><strong>Cancellation Fee:</strong> Rs {selectedOrder.pricing.cancellationFee}</p>
+              )}
               <p><strong>Address:</strong> {selectedOrder.customer?.address}</p>
             </div>
             <div className="detail">
@@ -1275,7 +1327,7 @@ export function CustomerApp() {
 
             <div className="detail">
               <strong>Payment Attempts</strong>
-              <span className={`chip ${selectedOrder.paymentStatus === "Paid" ? "success" : selectedOrder.paymentStatus === "Refunded" ? "refunded" : "pending"}`}>
+              <span className={`chip ${selectedOrder.paymentStatus === "Paid" ? "success" : selectedOrder.paymentStatus === "Refunded" ? "refunded" : "pending"}`} style={{ marginLeft: "0.5rem" }}>
                 {selectedOrder.paymentStatus || "Verification Pending"}
               </span>
               <ul>
@@ -1372,32 +1424,86 @@ export function CustomerApp() {
       ) : null}
 
       {cancelDraft.open ? (
-        <div className="backdrop show" onClick={() => setCancelDraft({ open: false, orderId: "", reason: "Changed my mind" })}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="backdrop show" onClick={() => setCancelDraft({ open: false, orderId: "", reason: "Changed my mind", step: "REASON" })}>
+          <div className="modal theme-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Cancel order?</h3>
+              <h3>{cancelDraft.step === "PAYMENT" ? "Pay Cancellation Fee" : "Cancel order?"}</h3>
             </div>
             <div className="modal-body">
-              <p>This action updates customer timeline immediately. Please provide a reason.</p>
-              <form
-                id="cancel-order-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  confirmCancel();
-                }}
-              >
-                <textarea 
-                  className="cancel-modal-textarea"
-                  rows={3} 
-                  placeholder="Reason for cancellation..."
-                  value={cancelDraft.reason} 
-                  onChange={(e) => setCancelDraft((p) => ({ ...p, reason: e.target.value }))} 
-                />
-              </form>
+              {cancelDraft.step === "REASON" && (
+                <>
+                  <p>This action updates customer timeline immediately. Please provide a reason.</p>
+                  {cancelDraft.fee > 0 && (
+                    <div className="fee-notice-box">
+                      <strong className="danger-text">Cancellation Fee: Rs {cancelDraft.fee}</strong>
+                      <p className="fee-subtext">
+                        Since your order is already in the <strong>{
+                          [...(orders.currentOrders || []), ...(orders.pastOrders || [])].find(o => o.id === cancelDraft.orderId)?.status
+                        }</strong> stage, a fee will be deducted.
+                      </p>
+                    </div>
+                  )}
+                  <form id="cancel-order-form" onSubmit={(e) => {
+                    e.preventDefault();
+                    if (cancelDraft.fee > 0) {
+                      setCancelDraft(p => ({ ...p, step: "PAYMENT" }));
+                    } else {
+                      confirmCancel();
+                    }
+                  }}>
+                    <textarea 
+                      className="cancel-modal-textarea themed-input"
+                      rows={3} 
+                      placeholder="Reason for cancellation..."
+                      value={cancelDraft.reason} 
+                      onChange={(e) => setCancelDraft((p) => ({ ...p, reason: e.target.value }))} 
+                    />
+                  </form>
+                </>
+              )}
+
+              {cancelDraft.step === "PAYMENT" && (
+                  <div className="qr-step-wrap">
+                    <div className="fee-summary">
+                      <p style={{ margin: "0 0 0.5rem" }}>Amount to pay: <strong>Rs {cancelDraft.fee}</strong></p>
+                      <span style={{ fontSize: "0.85rem", opacity: 0.8 }}>Reason: {cancelDraft.reason}</span>
+                    </div>
+                    <div className="qr-container-themed">
+                      <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=kitchen@bank%26pn=CloudKitchen%26am=${cancelDraft.fee}%26tn=Fee-Order-${cancelDraft.orderId}`} alt="Payment QR" />
+                      <p className="qr-instruction">Scan to pay cancellation fee</p>
+                    </div>
+                    <div className="txn-id-input-wrap" style={{ marginTop: "1rem" }}>
+                      <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", fontWeight: 600 }}>Transaction ID / Ref Number</label>
+                      <input 
+                        className="themed-input"
+                        placeholder="Enter 12-digit Txn ID"
+                        value={cancelDraft.txnId}
+                        onChange={(e) => setCancelDraft(p => ({ ...p, txnId: e.target.value }))}
+                      />
+                      <p style={{ fontSize: "0.75rem", color: "#6c655f", marginTop: "0.4rem" }}>Please enter the transaction ID from your payment app to proceed.</p>
+                    </div>
+                  </div>
+              )}
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn subtle" onClick={() => setCancelDraft({ open: false, orderId: "", reason: "Changed my mind" })}>Keep Order</button>
-              <button type="submit" form="cancel-order-form" className="btn accent">Confirm Cancellation</button>
+              <button type="button" className="btn subtle" onClick={() => {
+                if (cancelDraft.step === "PAYMENT") {
+                  setCancelDraft(p => ({ ...p, step: "REASON" }));
+                } else {
+                  setCancelDraft({ open: false, orderId: "", reason: "Changed my mind", step: "REASON" });
+                }
+              }}>
+                {cancelDraft.step === "PAYMENT" ? "Go Back" : "Keep Order"}
+              </button>
+              {cancelDraft.step === "REASON" ? (
+                <button type="submit" form="cancel-order-form" className="btn accent">
+                  {cancelDraft.fee > 0 ? "Next: Pay Fee" : "Confirm Cancellation"}
+                </button>
+              ) : (
+                <button type="button" className="btn accent" onClick={confirmCancel}>
+                  Fee Paid - Cancel Order
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1414,7 +1520,20 @@ export function CustomerApp() {
               <div className="order-id-tag">Order: {paymentPortal.orderId}</div>
               <p><strong>Provider:</strong> {paymentPortal.session?.provider === "upi_qr" ? "UPI QR" : "Mock Gateway"}</p>
               <p><strong>Amount:</strong> <span className="price">Rs {Number(paymentPortal.session?.amountPaise || 0) / 100}</span></p>
-              {paymentPortal.session?.provider === "upi_qr" ? (
+              
+              {paymentTimer > 0 ? (
+                <div className="payment-timer-wrap">
+                  <span className="timer-label">Session expires in:</span>
+                  <span className={`timer-value ${paymentTimer < 60 ? 'urgent' : ''}`}>{formatTimer(paymentTimer)}</span>
+                </div>
+              ) : (
+                <div className="payment-timer-expired">
+                  <p>⚠️ Payment session expired. Please regenerate the QR code to continue.</p>
+                  <button className="btn accent small" onClick={() => beginPaymentForOrder(paymentPortal.orderId)}>Regenerate QR</button>
+                </div>
+              )}
+
+              {paymentPortal.session?.provider === "upi_qr" && paymentTimer > 0 ? (
                 <>
                   <p>Scan this QR in any UPI app and complete the payment, then enter UTR/reference below.</p>
                   {paymentPortal.session?.qrImageUrl ? (
@@ -1440,15 +1559,16 @@ export function CustomerApp() {
                     />
                   </div>
                 </>
-              ) : (
+              ) : paymentPortal.session?.provider !== "upi_qr" && paymentTimer > 0 ? (
                 <p>This simulates a real payment gateway. Confirm to mark payment successful.</p>
-              )}
+              ) : null}
             </div>
             {paymentPortal.error ? <p style={{ color: "#b3261e", padding: "0 2.5rem" }}>{paymentPortal.error}</p> : null}
             <div className="modal-footer">
               <button className="btn subtle" disabled={paymentPortal.processing} onClick={cancelMockPayment}>Cancel Payment</button>
-              <button className="btn subtle" disabled={paymentPortal.processing} onClick={failMockPayment}>Simulate Failure</button>
-              <button className="btn accent" disabled={paymentPortal.processing} onClick={confirmMockPayment}>{paymentPortal.processing ? "Processing..." : paymentPortal.session?.provider === "upi_qr" ? "I Have Paid" : "Pay Securely"}</button>
+              {paymentTimer > 0 && (
+                <button className="btn accent" disabled={paymentPortal.processing} onClick={confirmMockPayment}>{paymentPortal.processing ? "Processing..." : paymentPortal.session?.provider === "upi_qr" ? "I Have Paid" : "Pay Securely"}</button>
+              )}
             </div>
           </div>
         </div>
@@ -1929,37 +2049,162 @@ function OrderShelf({ orders, openDetails, requestCancel, reorderOrder, updatedO
   );
 }
 
-function PaymentsPage({ orders, beginPaymentForOrder, openDetails, isPaying, refreshOrders }) {
+function PaymentsPage({ orders, beginPaymentForOrder, openDetails, isPaying, refreshOrders, paymentSearch, setPaymentSearch, paymentFilter, setPaymentFilter, paymentPriceRange, setPaymentPriceRange, paymentSort, setPaymentSort, paymentDateSearch, setPaymentDateSearch }) {
   const allOrders = [...(orders.currentOrders || []), ...(orders.pastOrders || [])];
-  const pendingPayments = allOrders
-    .filter((order) => needsOnlinePayment(order.paymentMode) && String(order.paymentStatus || "").toLowerCase() !== "paid" && String(order.status || "").toLowerCase() !== "cancelled")
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  
+  const filteredPayments = allOrders
+    .filter((order) => {
+      // Only online payments
+      if (!needsOnlinePayment(order.paymentMode)) return false;
+      
+      const status = String(order.paymentStatus || "").toLowerCase();
+      const orderStatus = String(order.status || "").toLowerCase();
+      const total = order.pricing?.total || 0;
+      const createdAt = new Date(order.createdAt);
+      
+      // Filter by section
+      if (paymentFilter === "pending") {
+        if (status === "paid" || orderStatus === "cancelled") return false;
+      } else if (paymentFilter === "completed") {
+        if (status !== "paid") return false;
+      }
+
+      // Filter by Price Range
+      if (paymentPriceRange !== "all") {
+        if (paymentPriceRange === "under500" && total >= 500) return false;
+        if (paymentPriceRange === "500-1000" && (total < 500 || total > 1000)) return false;
+        if (paymentPriceRange === "1000-2500" && (total < 1000 || total > 2500)) return false;
+        if (paymentPriceRange === "above2500" && total <= 2500) return false;
+      }
+
+      // Filter by Date Search (Calendar)
+      if (paymentDateSearch) {
+        const searchDate = new Date(paymentDateSearch).toLocaleDateString();
+        const orderDate = createdAt.toLocaleDateString();
+        if (searchDate !== orderDate) return false;
+      }
+      
+      // Filter by search (Date string, ID or Amount)
+      if (paymentSearch) {
+        const s = paymentSearch.toLowerCase();
+        const orderDateStr = createdAt.toLocaleDateString().toLowerCase();
+        return (
+          order.id.toLowerCase().includes(s) || 
+          String(total).includes(s) ||
+          orderDateStr.includes(s)
+        );
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
+      if (paymentSort === "newest") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (paymentSort === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (paymentSort === "priceHigh") return (b.pricing?.total || 0) - (a.pricing?.total || 0);
+      if (paymentSort === "priceLow") return (a.pricing?.total || 0) - (b.pricing?.total || 0);
+      return 0;
+    });
 
   return (
-    <section className="section container">
-      <div className="section-head">
+    <section className="section container payments-center-new">
+      <div className="section-head payments-header-new">
         <div>
           <p className="kicker">Secure payments</p>
           <h2>Payment Center</h2>
         </div>
-        <button className="btn subtle" onClick={refreshOrders}>Refresh</button>
       </div>
-      {!pendingPayments.length ? (
-        <p className="empty-orders">No pending online payments. You are all set.</p>
+
+      <div className="payments-unified-bar">
+        <div className="search-wrap-new">
+          <input 
+            value={paymentSearch} 
+            onChange={(e) => setPaymentSearch(e.target.value)} 
+            placeholder="Search ID, Date or Amount..." 
+            className="payment-search-input"
+          />
+        </div>
+
+        <div className="calendar-search-wrap">
+          <input 
+            type="date" 
+            value={paymentDateSearch} 
+            onChange={(e) => setPaymentDateSearch(e.target.value)}
+            className="payment-date-input"
+            title="Filter by specific date"
+          />
+          {paymentDateSearch && (
+            <button className="clear-date-btn" onClick={() => setPaymentDateSearch("")}>×</button>
+          )}
+        </div>
+
+        <CustomSelect 
+          className="payment-price-filter"
+          value={paymentPriceRange}
+          onChange={(e) => setPaymentPriceRange(e.target.value)}
+          options={[
+            { value: "all", label: "All Prices" },
+            { value: "under500", label: "Under Rs 500" },
+            { value: "500-1000", label: "Rs 500 - 1000" },
+            { value: "1000-2500", label: "Rs 1000 - 2500" },
+            { value: "above2500", label: "Above Rs 2500" }
+          ]}
+        />
+
+        <CustomSelect 
+          className="payment-sort-filter"
+          value={paymentSort}
+          onChange={(e) => setPaymentSort(e.target.value)}
+          options={[
+            { value: "newest", label: "Newest First" },
+            { value: "oldest", label: "Oldest First" },
+            { value: "priceHigh", label: "Price: High to Low" },
+            { value: "priceLow", label: "Price: Low to High" }
+          ]}
+        />
+
+        <div className="status-toggle-wrap-new">
+          <button className={`status-pill ${paymentFilter === 'pending' ? 'active' : ''}`} onClick={() => setPaymentFilter('pending')}>Pending</button>
+          <button className={`status-pill ${paymentFilter === 'completed' ? 'active' : ''}`} onClick={() => setPaymentFilter('completed')}>Completed</button>
+          <button className={`status-pill ${paymentFilter === 'all' ? 'active' : ''}`} onClick={() => setPaymentFilter('all')}>All</button>
+        </div>
+        
+        <button className="btn subtle refresh-btn" onClick={refreshOrders} title="Refresh Payments">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        </button>
+      </div>
+
+
+
+      {!filteredPayments.length ? (
+        <div className="empty-state-new">
+          <p>No payments found matching your criteria.</p>
+        </div>
       ) : (
-        <div className="payments-grid">
-          {pendingPayments.map((order) => (
-            <article className="order-card" key={order.id}>
-              <div className="order-top">
-                <strong>{order.id}</strong>
-                <span className="order-status live">{order.paymentStatus || "Pending"}</span>
-              </div>
-              <p><strong>Amount due:</strong> Rs {order.pricing?.total || 0}</p>
-              <p><strong>Mode:</strong> {order.paymentMode}</p>
-              <p><strong>Ordered:</strong> {new Date(order.createdAt).toLocaleString()}</p>
-              <div className="order-actions">
-                <button className="btn subtle" disabled={isPaying} onClick={() => beginPaymentForOrder(order.id)}>{isPaying ? "Processing..." : "Pay Now"}</button>
-                <button className="btn subtle" onClick={() => openDetails(order.id)}>View Details</button>
+        <div className="payments-grid-new">
+          {filteredPayments.map((order) => (
+            <article className={`payment-card-new ${String(order.paymentStatus || "").toLowerCase() === 'paid' ? 'paid' : ''}`} key={order.id} onClick={() => openDetails(order.id)}>
+              <div className="payment-card-inner">
+                <div className="order-tag">#{order.id}</div>
+                <div className="payment-main">
+                  <div className="payment-amount">
+                    <span className="currency">Rs</span>
+                    <span className="value">{order.pricing?.total || 0}</span>
+                  </div>
+                  <div className={`payment-status-tag ${String(order.paymentStatus || "").toLowerCase()}`}>
+                    {order.paymentStatus || "Pending"}
+                  </div>
+                </div>
+                <div className="payment-meta">
+                  <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="payment-footer">
+                  <button className="btn subtle small" onClick={() => openDetails(order.id)}>View Details</button>
+                  {String(order.paymentStatus || "").toLowerCase() !== "paid" && String(order.status || "").toLowerCase() !== "cancelled" && (
+                    <button className="btn accent small" disabled={isPaying} onClick={() => beginPaymentForOrder(order.id)}>
+                      {isPaying ? "Wait..." : "Pay Now"}
+                    </button>
+                  )}
+                </div>
               </div>
             </article>
           ))}
@@ -2117,7 +2362,7 @@ function OrderCard({ order, onDetails, onCancel, onReorder, onPay, highlightType
   const extraCount = Math.max(0, (order.items || []).length - 4);
 
   return (
-    <article className={cls}>
+    <article className={cls} onClick={onDetails} style={{ cursor: "pointer" }}>
       <div className="sq-card-inner">
         <div className="sq-status-bar">
           <span className={`sq-status-dot ${statusClass}`}></span>

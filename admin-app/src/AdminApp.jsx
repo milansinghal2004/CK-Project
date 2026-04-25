@@ -52,7 +52,15 @@ export function AdminApp() {
   const onDutyChefs = useMemo(() => chefs.filter((c) => c.isOnDuty), [chefs]);
   const activeChefs = useMemo(() => chefs.filter((c) => c.isActive !== false), [chefs]);
 
-  const todaysOrders = useMemo(() => orders.filter((o) => isToday(o.createdAt)), [orders]);
+  const todaysOrders = useMemo(() => {
+    return orders
+      .filter((o) => isToday(o.createdAt))
+      .sort((a, b) => {
+        if (a.status === "Cancelled" && b.status !== "Cancelled") return 1;
+        if (a.status !== "Cancelled" && b.status === "Cancelled") return -1;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+  }, [orders]);
   const pastOrders = useMemo(() => orders.filter((o) => !isToday(o.createdAt)), [orders]);
   const todaysTickets = useMemo(() => tickets.filter((t) => isToday(t.createdAt)), [tickets]);
   const pastTickets = useMemo(() => tickets.filter((t) => !isToday(t.createdAt)), [tickets]);
@@ -331,21 +339,37 @@ export function AdminApp() {
       setNotice(error.message || "Status update failed.");
     }
   }
-
-  async function verifyOrderPayment(orderId, approve = true) {
+  async function verifyOrderPayment(orderId, approve, note = "", paymentRef = "") {
     try {
-      await api(`/api/admin/orders/${orderId}/payment-verify`, {
+      const data = await api(`/api/admin/orders/${orderId}/payment-verify`, {
         method: "POST",
-        body: JSON.stringify({
-          approve,
-          note: approve ? "Verified by manager from dashboard." : "Rejected by manager from dashboard."
-        })
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${adminKey}` },
+        body: JSON.stringify({ approve, note, paymentRef })
       });
-      setNotice(approve ? `Payment verified for ${orderId}.` : `Payment rejected for ${orderId}.`);
-      await refreshAll();
-      if (activeOrder?.id === orderId) await openOrder(orderId);
-    } catch (error) {
-      setNotice(error.message || "Payment verification failed.");
+      flash(approve ? "Payment verified" : "Payment rejected");
+      refreshAll();
+      if (activeOrder?.id === orderId) {
+        setActiveOrder(data.order);
+      }
+    } catch (err) {
+      flash(err.message, "error");
+    }
+  }
+
+  async function approveCancellation(orderId, approved) {
+    try {
+      const data = await api(`/api/admin/orders/${orderId}/verify-cancellation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${adminKey}` },
+        body: JSON.stringify({ approved })
+      });
+      flash(approved ? "Order cancelled and fee verified" : "Cancellation request rejected");
+      refreshAll();
+      if (activeOrder?.id === orderId) {
+        setActiveOrder(data.order);
+      }
+    } catch (err) {
+      flash(err.message, "error");
     }
   }
 
@@ -593,40 +617,53 @@ export function AdminApp() {
                 </button>
               </div>
             </div>
-            <div className="admin-orders-grid">
-              {!todaysOrders.length ? <p>No orders found for today.</p> : todaysOrders.map((order) => (
-                <article className="admin-order-card" key={order.id}>
-                  <h4>{order.id}</h4>
-                  <p><span className="chip">{order.status}</span> <span className="chip">{order.paymentStatus || "Pending"}</span></p>
-                  <p>{order.customerName} ({order.customerPhone})</p>
-                  <p>Total: Rs {order.total} | {fmt(order.createdAt)}</p>
-                  <p>Chef: {order.assignedChef?.name || "Not assigned"}</p>
-                  <p>Item assignments: {order.assignedItems || 0}/{order.totalItems || 0}</p>
-                  <div className="admin-order-actions">
-                    <button className="btn subtle" onClick={() => openOrder(order.id)}>Details</button>
-                    {order.paymentStatus === "Verification Pending" ? (
-                      <>
-                        <button className="btn subtle" onClick={() => verifyOrderPayment(order.id, true)}>Verify Payment</button>
-                        <button className="btn subtle" onClick={() => verifyOrderPayment(order.id, false)}>Reject Proof</button>
-                      </>
-                    ) : null}
-                    <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Preparing")}>Preparing</button>
-                    <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Out for Delivery")}>Out for Delivery</button>
-                    <button className="btn subtle" onClick={() => updateOrderStatus(order.id, "Delivered")}>Delivered</button>
-                  </div>
-                  {order.status === "Cancelled" && order.paymentStatus === "Paid" && (
-                    <div className="refund-alert">
-                      ⚠️ REFUND/REVOKE ACTION REQUIRED
-                      <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", justifyContent: "center" }}>
-                        <button className="btn small accent" onClick={() => requestUpiForRefund(order)}>Request UPI for Refund</button>
-                        {String(order.paymentMode).toUpperCase() !== "COD" && (
-                           <button className="btn small subtle" onClick={() => markOrderRefunded(order.id)}>Mark Refunded</button>
-                        )}
+            <div className="admin-orders-grid-horizontal">
+              {!todaysOrders.length ? <p>No orders found for today.</p> : todaysOrders.map((order) => {
+                const isCancelled = order.status === "Cancelled";
+                return (
+                  <article 
+                    className={`admin-order-card-horizontal ${isCancelled ? 'cancelled' : ''} ${order.status === 'Delivered' ? 'delivered' : ''} ${order.status === 'Cancellation Requested' ? 'cancellation-pending' : ''}`} 
+                    key={order.id}
+                    onClick={() => openOrder(order.id)}
+                  >
+                    <div className="card-left">
+                      <div className="order-id">#{order.id.slice(-6)}</div>
+                      <div className="order-meta">
+                        <span className={`status-chip ${order.status.toLowerCase().replace(/ /g, '-')}`}>{order.status}</span>
+                        <span className={`status-chip ${order.paymentStatus?.toLowerCase() || 'pending'}`}>{order.paymentStatus || "Pending"}</span>
                       </div>
                     </div>
-                  )}
-                </article>
-              ))}
+                    
+                    <div className="card-center">
+                      <div className="cust-info">
+                        <strong>{order.customerName || "Guest"}</strong>
+                        <span>{order.customerPhone}</span>
+                      </div>
+                      <div className="order-summary">
+                        Rs {order.total} • {fmt(order.createdAt)}
+                      </div>
+                    </div>
+
+                    <div className="card-right">
+                      <div className="quick-actions">
+                        <select 
+                          className="status-select" 
+                          value={order.status} 
+                          onChange={(e) => updateOrderStatus(order.id, e.target.value, "Quick update from dashboard")}
+                          disabled={isCancelled || order.status === "Delivered"}
+                        >
+                          <option value="Confirmed">Confirmed</option>
+                          <option value="Preparing">Preparing</option>
+                          <option value="Out for Delivery">Out for Delivery</option>
+                          <option value="Delivered">Delivered</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                        <button className="btn subtle small" onClick={() => openOrder(order.id)}>Details</button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
         ) : null}
@@ -1002,7 +1039,7 @@ export function AdminApp() {
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="order-detail-head">
               <h3>Order {activeOrder.id}</h3>
-              <button className="icon-btn" onClick={() => setActiveOrder(null)}>X</button>
+              <button className="icon-btn" onClick={() => setActiveOrder(null)}>&times;</button>
             </div>
             <div className="detail-block">
               <p><strong>Status:</strong> {activeOrder.status}</p>
@@ -1011,6 +1048,21 @@ export function AdminApp() {
               <p><strong>Address:</strong> {activeOrder.customer?.address}</p>
               <p><strong>Total:</strong> Rs {activeOrder.pricing?.total}</p>
             </div>
+
+            {activeOrder.status === "Cancellation Requested" ? (
+              <div className="detail-block cancellation-request-pane" style={{ background: "#fff5f5", padding: "1.2rem", borderRadius: "16px", border: "1px solid #feb2b2", marginBottom: "1.5rem" }}>
+                <h4 style={{ color: "#c53030", margin: "0 0 0.8rem", fontSize: "1.1rem" }}>Cancellation Request Pending</h4>
+                <div style={{ display: "grid", gap: "0.5rem", fontSize: "0.95rem" }}>
+                  <p><strong>Reason:</strong> {activeOrder.cancelReason}</p>
+                  <p><strong>Fee Transaction ID:</strong> <code style={{ background: "#fff", padding: "4px 8px", borderRadius: "6px", border: "1px solid #fed7d7" }}>{activeOrder.paymentRef}</code></p>
+                  <p><strong>Fee Amount:</strong> <span style={{ color: "#c53030", fontWeight: 700 }}>Rs {activeOrder.cancellationFee}</span></p>
+                </div>
+                <div style={{ marginTop: "1.2rem", display: "flex", gap: "0.8rem" }}>
+                  <button className="btn accent" style={{ background: "#c53030", border: "none", flex: 1 }} onClick={() => approveCancellation(activeOrder.id, true)}>Approve & Cancel Order</button>
+                  <button className="btn subtle" style={{ flex: 1 }} onClick={() => approveCancellation(activeOrder.id, false)}>Reject Request</button>
+                </div>
+              </div>
+            ) : null}
             {String(activeOrder.paymentMode || "").trim().toUpperCase() === "COD" ? (
               <div className="detail-block">
                 <strong>COD Payment</strong>
@@ -1029,17 +1081,45 @@ export function AdminApp() {
             ) : null}
             <div className="detail-block">
               <strong>Status Actions</strong>
-              <div className="admin-order-actions" style={{ marginTop: "0.6rem" }}>
-                <button className="btn subtle" onClick={() => updateOrderStatus(activeOrder.id, "Preparing", "Updated from order details modal")}>Preparing</button>
-                <button className="btn subtle" onClick={() => updateOrderStatus(activeOrder.id, "Out for Delivery", "Updated from order details modal")}>Out for Delivery</button>
-                <button className="btn subtle" onClick={() => updateOrderStatus(activeOrder.id, "Delivered", "Updated from order details modal")}>Delivered</button>
-                <button className="btn subtle" disabled={activeOrder.status === "Delivered" || activeOrder.status === "Cancelled"} onClick={() => updateOrderStatus(activeOrder.id, "Cancelled", "Cancelled by manager from order details")}>Manual Cancel</button>
-                {activeOrder.paymentStatus === "Verification Pending" ? (
-                  <>
-                    <button className="btn subtle" onClick={() => verifyOrderPayment(activeOrder.id, true)}>Verify Payment</button>
-                    <button className="btn subtle" onClick={() => verifyOrderPayment(activeOrder.id, false)}>Reject Proof</button>
-                  </>
+              <div className="admin-order-actions" style={{ marginTop: "0.6rem", display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
+                <button 
+                  className={`btn status-btn ${activeOrder.status === "Preparing" ? "active-status-red" : "subtle"}`} 
+                  onClick={() => updateOrderStatus(activeOrder.id, "Preparing", "Updated from order details modal")}
+                >
+                  Preparing
+                </button>
+                <button 
+                  className={`btn status-btn ${activeOrder.status === "Out for Delivery" ? "active-status-red" : "subtle"}`} 
+                  onClick={() => updateOrderStatus(activeOrder.id, "Out for Delivery", "Updated from order details modal")}
+                >
+                  Out for Delivery
+                </button>
+                <button 
+                  className={`btn status-btn ${activeOrder.status === "Delivered" ? "active-status-red" : "subtle"}`} 
+                  onClick={() => updateOrderStatus(activeOrder.id, "Delivered", "Updated from order details modal")}
+                >
+                  Delivered
+                </button>
+                {activeOrder.paymentStatus === "Verification Pending" || (activeOrder.paymentStatus === "Pending" && activeOrder.paymentMode !== "COD") ? (
+                  <button className="btn accent" onClick={() => verifyOrderPayment(activeOrder.id, true)}>Verify & Approve Payment</button>
                 ) : null}
+                
+                <div style={{ marginLeft: "auto" }}>
+                  <button 
+                    className="btn subtle danger-text" 
+                    disabled={activeOrder.status === "Delivered" || activeOrder.status === "Cancelled"} 
+                    style={{ border: "1px solid #feb2b2" }}
+                    onClick={() => {
+                      const fee = calculateCancellationFee(activeOrder);
+                      const msg = fee > 0 ? `Order is in ${activeOrder.status} stage. A cancellation fee of Rs ${fee} will be applied. Continue?` : "Are you sure you want to cancel this order?";
+                      if (window.confirm(msg)) {
+                        updateOrderStatus(activeOrder.id, "Cancelled", `Cancelled by manager (Fee: Rs ${fee})`);
+                      }
+                    }}
+                  >
+                    Manual Cancel
+                  </button>
+                </div>
               </div>
             </div>
             <div className="detail-block">

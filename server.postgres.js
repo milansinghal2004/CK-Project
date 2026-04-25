@@ -296,6 +296,18 @@ function canCancelOrder(order) {
   return !(status === "Cancelled" || status === "Delivered");
 }
 
+function calculateCancellationFee(order) {
+  const status = getOrderStatus(order);
+  const total = order.pricing?.total || order.total || 0;
+  if (status === "Preparing") {
+    return Math.max(20, Math.round(total * 0.05));
+  }
+  if (status === "Out for Delivery") {
+    return Math.max(50, Math.round(total * 0.15));
+  }
+  return 0;
+}
+
 function getAdminUsername() {
   return process.env.ADMIN_USERNAME || "manager";
 }
@@ -351,7 +363,8 @@ function toOrderDto(row, items = [], history = [], supportTickets = [], paymentT
       deliveryFee: row.delivery_fee,
       tax: row.tax,
       total: row.total,
-      appliedOffer: row.applied_offer || null
+      appliedOffer: row.applied_offer || null,
+      cancellationFee: row.cancellation_fee || 0
     },
     items,
     statusHistory: history,
@@ -1626,14 +1639,42 @@ async function handleApi(req, res, urlObj) {
     const orderId = parts[2] || "";
     const body = await parseBody(req);
     const reason = String(body.reason || "Cancelled by user").trim();
+    const txnId = String(body.txnId || "").trim();
+    
     const existing = await queryOne("SELECT * FROM orders WHERE id = $1", [orderId]);
     if (!existing) return sendError(res, 404, "Order not found.");
     if (!canCancelOrder(existing)) return sendError(res, 409, "Order cannot be cancelled at this stage.");
-    await pool.query("UPDATE orders SET status = 'Cancelled', cancel_reason = $2, cancelled_at = NOW() WHERE id = $1", [orderId, reason]);
-    await pool.query("INSERT INTO order_status_history (order_id, status, note) VALUES ($1,'Cancelled',$2)", [orderId, reason]);
-    const updated = await fetchOrderWithDetails(orderId);
-    if (updated?.sessionId) emitRealtimeUpdate(updated.sessionId, "order_updated", { orderId, status: "Cancelled" });
-    return sendJson(res, 200, { ok: true, order: updated });
+    
+    const fee = calculateCancellationFee(existing);
+    
+    if (fee > 0) {
+      if (!txnId) return sendError(res, 400, "Transaction ID is required for cancellation fee.");
+      // Set status to 'Cancellation Requested' instead of 'Cancelled'
+      await pool.query(
+        "UPDATE orders SET status = 'Cancellation Requested', cancellation_fee = $2, cancel_reason = $3, payment_ref = $4 WHERE id = $1", 
+        [orderId, fee, reason, txnId]
+      );
+      await pool.query(
+        "INSERT INTO order_status_history (order_id, status, note) VALUES ($1, 'Cancellation Requested', $2)", 
+        [orderId, `User requested cancellation. Fee Txn: ${txnId}. Reason: ${reason}`]
+      );
+      const updated = await fetchOrderWithDetails(orderId);
+      if (updated?.sessionId) emitRealtimeUpdate(updated.sessionId, "order_updated", { orderId, status: "Cancellation Requested" });
+      return sendJson(res, 200, { ok: true, order: updated });
+    } else {
+      // Immediate cancellation if no fee
+      await pool.query(
+        "UPDATE orders SET status = 'Cancelled', cancellation_fee = $2, cancel_reason = $3, cancelled_at = NOW() WHERE id = $1", 
+        [orderId, fee, reason]
+      );
+      await pool.query(
+        "INSERT INTO order_status_history (order_id, status, note) VALUES ($1, 'Cancelled', $2)", 
+        [orderId, reason]
+      );
+      const updated = await fetchOrderWithDetails(orderId);
+      if (updated?.sessionId) emitRealtimeUpdate(updated.sessionId, "order_updated", { orderId, status: "Cancelled" });
+      return sendJson(res, 200, { ok: true, order: updated });
+    }
   }
 
   if (method === "POST" && pathname.startsWith("/api/orders/") && pathname.endsWith("/reorder")) {
@@ -1698,11 +1739,12 @@ async function handleApi(req, res, urlObj) {
     if (!existing) return sendError(res, 404, "Order not found.");
     if (existing.status === "Cancelled") return sendError(res, 409, "Cancelled order cannot be progressed.");
     const paymentStatus = status === "Delivered" && existing.payment_mode === "COD" ? "Paid" : existing.payment_status;
+    const fee = status === "Cancelled" ? calculateCancellationFee(existing) : (existing.cancellation_fee || 0);
     const updated = await queryOne(
-      "UPDATE orders SET status = $2, payment_status = $3, delivered_at = CASE WHEN $2 = 'Delivered' THEN NOW() ELSE delivered_at END WHERE id = $1 RETURNING *",
-      [orderId, status, paymentStatus]
+      "UPDATE orders SET status = $2, payment_status = $3, cancellation_fee = $4, delivered_at = CASE WHEN $2 = 'Delivered' THEN NOW() ELSE delivered_at END WHERE id = $1 RETURNING *",
+      [orderId, status, paymentStatus, fee]
     );
-    await pool.query("INSERT INTO order_status_history (order_id, status, note) VALUES ($1,$2,$3)", [orderId, status, note || "Updated by kitchen"]);
+    await pool.query("INSERT INTO order_status_history (order_id, status, note) VALUES ($1,$2,$3)", [orderId, status, fee > 0 && status === "Cancelled" ? `${note || "Updated by kitchen"} (Cancellation fee: Rs ${fee})` : (note || "Updated by kitchen")]);
     const dto = await fetchOrderWithDetails(orderId);
     if (updated.session_id) emitRealtimeUpdate(updated.session_id, "order_updated", { orderId, status, paymentStatus });
     return sendJson(res, 200, { ok: true, order: dto });
@@ -1753,6 +1795,30 @@ async function handleApi(req, res, urlObj) {
     if (order.session_id) emitRealtimeUpdate(order.session_id, "order_updated", { orderId, paymentStatus: "Pending", status: order.status });
     const dto = await fetchOrderWithDetails(orderId);
     return sendJson(res, 200, { ok: true, order: dto, paymentStatus: "Pending" });
+  }
+
+  if (method === "POST" && pathname.startsWith("/api/admin/orders/") && pathname.endsWith("/verify-cancellation")) {
+    if (!isAdminAuthorized(req)) return sendError(res, 401, "Invalid admin key.");
+    const parts = pathname.split("/").filter(Boolean);
+    const orderId = parts[3] || "";
+    const body = await parseBody(req);
+    const approved = body.approved !== false;
+    
+    const existing = await queryOne("SELECT * FROM orders WHERE id = $1", [orderId]);
+    if (!existing) return sendError(res, 404, "Order not found.");
+    
+    if (approved) {
+      await pool.query("UPDATE orders SET status = 'Cancelled', cancelled_at = NOW() WHERE id = $1", [orderId]);
+      await pool.query("INSERT INTO order_status_history (order_id, status, note) VALUES ($1, 'Cancelled', 'Cancellation fee payment verified and order cancelled.')", [orderId]);
+    } else {
+      await pool.query("UPDATE orders SET status = 'Confirmed' WHERE id = $1", [orderId]);
+      await pool.query("INSERT INTO order_status_history (order_id, status, note) VALUES ($1, 'Confirmed', 'Cancellation request rejected by admin.')", [orderId]);
+    }
+    
+    const updated = await fetchOrderWithDetails(orderId);
+    if (updated?.sessionId) emitRealtimeUpdate(updated.sessionId, "order_updated", { orderId, status: updated.status });
+    return sendJson(res, 200, { ok: true, order: updated });
+  }
   }
 
 
