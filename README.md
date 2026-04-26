@@ -86,8 +86,8 @@ The command center for kitchen managers, providing deep insights into operations
 1. **Clone & Install**:
 
    ```bash
-   git clone https://github.com/milansinghal2004/CK-Project.git
-   cd CK-Project
+   git clone https://github.com/milansinghal2004/Cloud_Kitchen_Management_System.git
+   cd Cloud_Kitchen_Management_System
    npm install
    ```
 
