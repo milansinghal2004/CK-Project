@@ -994,6 +994,7 @@ export function CustomerApp() {
             element={
               <PaymentsPage
                 orders={orders}
+                apiBase={apiBase}
                 beginPaymentForOrder={beginPaymentForOrder}
                 openDetails={openOrderDetails}
                 isPaying={isPaying}
@@ -2053,7 +2054,7 @@ function OrderShelf({ orders, openDetails, requestCancel, reorderOrder, updatedO
   );
 }
 
-function PaymentsPage({ orders, beginPaymentForOrder, openDetails, isPaying, refreshOrders, paymentSearch, setPaymentSearch, paymentFilter, setPaymentFilter, paymentPriceRange, setPaymentPriceRange, paymentSort, setPaymentSort, paymentDateSearch, setPaymentDateSearch }) {
+function PaymentsPage({ orders, apiBase, beginPaymentForOrder, openDetails, isPaying, refreshOrders, paymentSearch, setPaymentSearch, paymentFilter, setPaymentFilter, paymentPriceRange, setPaymentPriceRange, paymentSort, setPaymentSort, paymentDateSearch, setPaymentDateSearch }) {
   const allOrders = [...(orders.currentOrders || []), ...(orders.pastOrders || [])];
   
   const filteredPayments = allOrders
