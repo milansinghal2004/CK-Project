@@ -559,7 +559,7 @@ async function handleApi(req, res, urlObj) {
     return sendJson(res, 200, { ok: true });
   }
 
-  if ((method === "POST" || method === "DELETE") && pathname.startsWith("/api/cart/clear")) {
+  if ((method === "POST" || method === "DELETE" || method === "GET") && (pathname === "/api/cart/clear" || pathname === "/api/cart/clear/")) {
     const body = await parseBody(req).catch(() => ({}));
     const sessionId = String(body.sessionId || urlObj.searchParams.get("sessionId") || "").trim();
     if (!sessionId) return sendError(res, 400, "sessionId is required.");
@@ -571,7 +571,7 @@ async function handleApi(req, res, urlObj) {
     }
     
     emitRealtimeUpdate(sessionId, "cart_updated", { sessionId });
-    return sendJson(res, 200, { ok: true, message: "Cart cleared" });
+    return sendJson(res, 200, { ok: true, message: "Cart cleared", method });
   }
 
   if (method === "DELETE" && pathname.startsWith("/api/cart/item/")) {
@@ -858,7 +858,7 @@ async function handleApi(req, res, urlObj) {
     });
   }
 
-  return sendError(res, 404, "Endpoint not found.");
+  return sendError(res, 404, `Endpoint not found: ${method} ${pathname}`);
 }
 
 async function handleStatic(req, res, urlObj) {
