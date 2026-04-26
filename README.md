@@ -48,28 +48,28 @@ Most cloud kitchens lose 25-30% revenue to delivery platforms. **Cloud Kitchen S
 A high-conversion, mobile-responsive storefront featuring a modern glassmorphism design.
 
 ````carousel
-![Landing Page](file:///d:/Cloud%20Kitchen%20Startup%20Mode/Images/Customer_Site/landing_page.png)
+![Landing Page](./Images/Customer_Site/landing_page.png)
 <!-- slide -->
-![Menu Discovery](file:///d:/Cloud%20Kitchen%20Startup%20Mode/Images/Customer_Site/menu_page.png)
+![Menu Discovery](./Images/Customer_Site/menu_page.png)
 <!-- slide -->
-![Daily Specials](file:///d:/Cloud%20Kitchen%20Startup%20Mode/Images/Customer_Site/specials.png)
+![Daily Specials](./Images/Customer_Site/specials.png)
 <!-- slide -->
-![Smart Cart](file:///d:/Cloud%20Kitchen%20Startup%20Mode/Images/Customer_Site/cart_page.png)
+![Smart Cart](./Images/Customer_Site/cart_page.png)
 <!-- slide -->
-![Order Tracking](file:///d:/Cloud%20Kitchen%20Startup%20Mode/Images/Customer_Site/orders_page.png)
+![Order Tracking](./Images/Customer_Site/orders_page.png)
 <!-- slide -->
-![Payments](file:///d:/Cloud%20Kitchen%20Startup%20Mode/Images/Customer_Site/payments_page.png)
+![Payments](./Images/Customer_Site/payments_page.png)
 ````
 
 ### 👨‍💼 Admin Management Portal
 The command center for kitchen managers, providing deep insights into operations and performance.
 
 ````carousel
-![Admin Overview](file:///d:/Cloud%20Kitchen%20Startup%20Mode/Images/Admin_Portal/admin_landing.png)
+![Admin Overview](./Images/Admin_Portal/admin_landing.png)
 <!-- slide -->
-![Deep Analytics](file:///d:/Cloud%20Kitchen%20Startup%20Mode/Images/Admin_Portal/admin_analytics.png)
+![Deep Analytics](./Images/Admin_Portal/admin_analytics.png)
 <!-- slide -->
-![Order History](file:///d:/Cloud%20Kitchen%20Startup%20Mode/Images/Admin_Portal/admin_pastOrders.png)
+![Order History](./Images/Admin_Portal/admin_pastOrders.png)
 ````
 
 ## 🛠️ Installation & Setup
