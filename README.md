@@ -1,6 +1,6 @@
 # 🍔 Cloud Kitchen Management Dashboard
 
-![Banner](./Images/banner.png)
+![Banner](./Images/banner_new.png)
 
 A modern, full-stack **Direct-to-Consumer (D2C)** food technology platform designed to empower independent **cloud kitchens**. Reclaim your margins by replacing third-party dependencies with a premium, self-hosted ordering system and a robust **restaurant management suite**.
 
