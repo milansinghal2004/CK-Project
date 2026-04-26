@@ -2226,7 +2226,7 @@ dialog::backdrop {
 }
 
 .sq-progress-line.cancel {
-  background: #fda4af;
+  background: #fe7a89;
   width: 100%;
   opacity: 0.4;
 }
@@ -2346,9 +2346,17 @@ dialog::backdrop {
 }
 
 @keyframes pulse-light {
-  0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
-  70% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(251, 191, 36, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+  }
 }
 
 .sq-status-text {
@@ -3669,4 +3677,4 @@ dialog::backdrop {
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(47%) sepia(85%) saturate(3015%) hue-rotate(345deg) brightness(101%) contrast(89%);
   cursor: pointer;
-}
+}
