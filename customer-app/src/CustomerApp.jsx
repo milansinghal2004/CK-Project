@@ -40,6 +40,36 @@ function CustomSelect({ value, onChange, options, className }) {
   );
 }
 
+function levenshtein(a, b) {
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+function fuzzyMatch(text, query) {
+  if (!query) return true;
+  const t = text.toLowerCase();
+  const q = query.trim().toLowerCase();
+  if (t.includes(q)) return true;
+
+  const words = t.split(/\s+/);
+  for (const word of words) {
+    if (levenshtein(word, q) <= 1) return true;
+    if (q.length > 3 && levenshtein(word, q) <= 2) return true;
+  }
+  return false;
+}
+
 export function CustomerApp() {
   const [showFullTimeline, setShowFullTimeline] = useState(false);
   const [upiDrafts, setUpiDrafts] = useState({});
@@ -66,7 +96,8 @@ export function CustomerApp() {
   const [paymentFilter, setPaymentFilter] = useState("pending"); // 'all', 'pending', 'completed'
   const [paymentPriceRange, setPaymentPriceRange] = useState("all"); // 'all', 'under500', '500-1000', '1000-2500', 'above2500'
   const [paymentSort, setPaymentSort] = useState("newest"); // 'newest', 'oldest', 'priceHigh', 'priceLow'
-  const [paymentDateSearch, setPaymentDateSearch] = useState(""); // Calendar search
+  const [paymentDateSearch, setPaymentDateSearch] = useState(""); // Start date
+  const [paymentEndDateSearch, setPaymentEndDateSearch] = useState(""); // End date
   const [paymentTimer, setPaymentTimer] = useState(0); // seconds remaining
 
   function getInitials(name) {
@@ -322,10 +353,14 @@ export function CustomerApp() {
   async function loadMenu(base = null) {
     const q = new URLSearchParams();
     if (category) q.set("category", category);
-    if (search) q.set("search", search);
+    // Fetch items for category, then filter fuzzily on client
     try {
       const data = await api(`/api/menu?${q.toString()}`, {}, base);
-      setMenu(data.items || []);
+      let items = data.items || [];
+      if (search) {
+        items = items.filter(it => fuzzyMatch(it.name, search));
+      }
+      setMenu(items);
     } catch {
       setMenu([]);
     }
@@ -678,7 +713,7 @@ export function CustomerApp() {
         await api("/api/payments/attempt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: paymentPortal.orderId, status: "cancelled", reason: "User cancelled in mock portal." })
+          body: JSON.stringify({ orderId: paymentPortal.orderId, status: "cancelled", reason: "User cancelled in admin or manager." })
         });
       } catch {
         // no-op
@@ -1009,6 +1044,8 @@ export function CustomerApp() {
                 setPaymentSort={setPaymentSort}
                 paymentDateSearch={paymentDateSearch}
                 setPaymentDateSearch={setPaymentDateSearch}
+                paymentEndDateSearch={paymentEndDateSearch}
+                setPaymentEndDateSearch={setPaymentEndDateSearch}
               />
             }
           />
@@ -1523,7 +1560,7 @@ export function CustomerApp() {
             </div>
             <div className="modal-body">
               <div className="order-id-tag">Order: {paymentPortal.orderId}</div>
-              <p><strong>Provider:</strong> {paymentPortal.session?.provider === "upi_qr" ? "UPI QR" : "Mock Gateway"}</p>
+              <p><strong>Provider:</strong> {paymentPortal.session?.provider === "upi_qr" ? "UPI QR" : "Admin or Manager"}</p>
               <p><strong>Amount:</strong> <span className="price">Rs {Number(paymentPortal.session?.amountPaise || 0) / 100}</span></p>
               
               {paymentTimer > 0 ? (
@@ -1829,15 +1866,25 @@ function LandingMenu({ menu, categories, search, setSearch, category, setCategor
           <h2>Explore our Menu</h2>
         </div>
         <div className="landing-actions">
-          <input 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)} 
-            placeholder="Search favorites..." 
-            className="landing-search"
-          />
+          <div className="search-input-container">
+            <input 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+              placeholder="Search favorites..." 
+              className="landing-search"
+            />
+            {search && (
+              <button className="search-clear-btn" onClick={() => setSearch("")} title="Clear search">×</button>
+            )}
+          </div>
         </div>
       </div>
       <div className="menu-grid">
+        {!menu.length && search && (
+          <div className="empty-search-results">
+            <p>No dishes found matching "<strong>{search}</strong>". Try a different keyword.</p>
+          </div>
+        )}
         {menu.map((item) => (
           <article className="dish-card" key={item.id}>
             <img className="dish-image" src={`${apiBase}${item.image}`} alt={item.name} />
@@ -1940,15 +1987,25 @@ function MenuPage({ menu, categories, search, setSearch, category, setCategory, 
             <h2>{category === "All" ? "Our Signature Menu" : `Best of ${category}`}</h2>
           </div>
           <div className="menu-search-new">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search for dishes..."
-            />
+            <div className="search-input-container">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search for dishes..."
+              />
+              {search && (
+                <button className="search-clear-btn" onClick={() => setSearch("")} title="Clear search">×</button>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="menu-grid">
+          {!menu.length && search && (
+            <div className="empty-search-results">
+              <p>No dishes found matching "<strong>{search}</strong>". Try a different keyword.</p>
+            </div>
+          )}
           {menu.map((item) => (
             <article className="dish-card" key={item.id}>
               <img className="dish-image" src={`${apiBase}${item.image}`} alt={item.name} />
@@ -2054,7 +2111,7 @@ function OrderShelf({ orders, openDetails, requestCancel, reorderOrder, updatedO
   );
 }
 
-function PaymentsPage({ orders, apiBase, beginPaymentForOrder, openDetails, isPaying, refreshOrders, paymentSearch, setPaymentSearch, paymentFilter, setPaymentFilter, paymentPriceRange, setPaymentPriceRange, paymentSort, setPaymentSort, paymentDateSearch, setPaymentDateSearch }) {
+function PaymentsPage({ orders, apiBase, beginPaymentForOrder, openDetails, isPaying, refreshOrders, paymentSearch, setPaymentSearch, paymentFilter, setPaymentFilter, paymentPriceRange, setPaymentPriceRange, paymentSort, setPaymentSort, paymentDateSearch, setPaymentDateSearch, paymentEndDateSearch, setPaymentEndDateSearch }) {
   const allOrders = [...(orders.currentOrders || []), ...(orders.pastOrders || [])];
   
   const filteredPayments = allOrders
@@ -2067,11 +2124,15 @@ function PaymentsPage({ orders, apiBase, beginPaymentForOrder, openDetails, isPa
       const total = order.pricing?.total || 0;
       const createdAt = new Date(order.createdAt);
       
-      // Filter by section
+      // Filter by section (Dropdown)
       if (paymentFilter === "pending") {
         if (status === "paid" || orderStatus === "cancelled") return false;
       } else if (paymentFilter === "completed") {
-        if (status !== "paid") return false;
+        if (status !== "paid" || orderStatus === "cancelled") return false;
+      } else if (paymentFilter === "cancelled") {
+        if (orderStatus !== "cancelled") return false;
+      } else if (paymentFilter === "refunded") {
+        if (status !== "refunded") return false;
       }
 
       // Filter by Price Range
@@ -2082,11 +2143,15 @@ function PaymentsPage({ orders, apiBase, beginPaymentForOrder, openDetails, isPa
         if (paymentPriceRange === "above2500" && total <= 2500) return false;
       }
 
-      // Filter by Date Search (Calendar)
+      // Filter by Date Range
+      const orderDate = new Date(createdAt.toDateString());
       if (paymentDateSearch) {
-        const searchDate = new Date(paymentDateSearch).toLocaleDateString();
-        const orderDate = createdAt.toLocaleDateString();
-        if (searchDate !== orderDate) return false;
+        const startDate = new Date(new Date(paymentDateSearch).toDateString());
+        if (orderDate < startDate) return false;
+      }
+      if (paymentEndDateSearch) {
+        const endDate = new Date(new Date(paymentEndDateSearch).toDateString());
+        if (orderDate > endDate) return false;
       }
       
       // Filter by search (Date string, ID or Amount)
@@ -2121,26 +2186,61 @@ function PaymentsPage({ orders, apiBase, beginPaymentForOrder, openDetails, isPa
 
       <div className="payments-unified-bar">
         <div className="search-wrap-new">
-          <input 
-            value={paymentSearch} 
-            onChange={(e) => setPaymentSearch(e.target.value)} 
-            placeholder="Search ID, Date or Amount..." 
-            className="payment-search-input"
-          />
+          <div className="search-input-container">
+            <input 
+              value={paymentSearch} 
+              onChange={(e) => setPaymentSearch(e.target.value)} 
+              placeholder="Search ID, Date or Amount..." 
+              className="payment-search-input"
+            />
+            {paymentSearch && (
+              <button className="search-clear-btn" onClick={() => setPaymentSearch("")} title="Clear search">×</button>
+            )}
+          </div>
         </div>
 
-        <div className="calendar-search-wrap">
-          <input 
-            type="date" 
-            value={paymentDateSearch} 
-            onChange={(e) => setPaymentDateSearch(e.target.value)}
-            className="payment-date-input"
-            title="Filter by specific date"
-          />
-          {paymentDateSearch && (
-            <button className="clear-date-btn" onClick={() => setPaymentDateSearch("")}>×</button>
+        <div className="calendar-search-range">
+          <div className="date-field" onClick={(e) => e.currentTarget.querySelector('input').showPicker?.()}>
+            <label>From</label>
+            <div className="date-input-wrapper">
+              <input 
+                type="date" 
+                value={paymentDateSearch} 
+                onChange={(e) => setPaymentDateSearch(e.target.value)}
+                className="payment-date-input"
+              />
+              <svg className="cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            </div>
+          </div>
+          <div className="date-field" onClick={(e) => e.currentTarget.querySelector('input').showPicker?.()}>
+            <label>To</label>
+            <div className="date-input-wrapper">
+              <input 
+                type="date" 
+                value={paymentEndDateSearch} 
+                onChange={(e) => setPaymentEndDateSearch(e.target.value)}
+                className="payment-date-input"
+              />
+              <svg className="cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            </div>
+          </div>
+          {(paymentDateSearch || paymentEndDateSearch) && (
+            <button className="clear-date-btn" onClick={() => { setPaymentDateSearch(""); setPaymentEndDateSearch(""); }} title="Clear dates">×</button>
           )}
         </div>
+
+        <CustomSelect 
+          className="payment-status-filter"
+          value={paymentFilter}
+          onChange={(e) => setPaymentFilter(e.target.value)}
+          options={[
+            { value: "all", label: "All Status" },
+            { value: "pending", label: "Pending" },
+            { value: "completed", label: "Completed" },
+            { value: "cancelled", label: "Cancelled" },
+            { value: "refunded", label: "Refunded" }
+          ]}
+        />
 
         <CustomSelect 
           className="payment-price-filter"
@@ -2166,19 +2266,11 @@ function PaymentsPage({ orders, apiBase, beginPaymentForOrder, openDetails, isPa
             { value: "priceLow", label: "Price: Low to High" }
           ]}
         />
-
-        <div className="status-toggle-wrap-new">
-          <button className={`status-pill ${paymentFilter === 'pending' ? 'active' : ''}`} onClick={() => setPaymentFilter('pending')}>Pending</button>
-          <button className={`status-pill ${paymentFilter === 'completed' ? 'active' : ''}`} onClick={() => setPaymentFilter('completed')}>Completed</button>
-          <button className={`status-pill ${paymentFilter === 'all' ? 'active' : ''}`} onClick={() => setPaymentFilter('all')}>All</button>
-        </div>
         
         <button className="btn subtle refresh-btn" onClick={refreshOrders} title="Refresh Payments">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
         </button>
       </div>
-
-
 
       {!filteredPayments.length ? (
         <div className="empty-state-new">
@@ -2362,7 +2454,9 @@ function OrderCard({ order, onDetails, onCancel, onReorder, onPay, highlightType
   }
 
   const cls = `order-card-sq ${highlightType ? `updated-${highlightType}` : ""} status-${statusClass} ${tint}`;
-  const canPay = order.paymentStatus === "Pending" && needsOnlinePayment(order.paymentMode);
+  const canPay = order.paymentStatus === "Pending" && 
+                 needsOnlinePayment(order.paymentMode) && 
+                 String(order.status || "").toLowerCase() !== "cancelled";
   
   const dateStr = new Date(order.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   const timeStr = new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

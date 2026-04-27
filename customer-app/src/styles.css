@@ -289,6 +289,48 @@ select {
   border-radius: 10px;
   padding: 0.62rem 0.8rem;
   font: inherit;
+  width: 100%;
+}
+
+.search-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 12px;
+  background: rgba(0,0,0,0.06);
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0 0 2px 0;
+  z-index: 5;
+}
+
+.search-clear-btn:hover {
+  background: rgba(0,0,0,0.1);
+  color: var(--text);
+}
+
+.empty-search-results {
+  grid-column: 1 / -1;
+  padding: 3rem 2rem;
+  text-align: center;
+  background: rgba(0,0,0,0.02);
+  border-radius: var(--radius);
+  border: 1px dashed rgba(0,0,0,0.1);
 }
 
 /* Premium Layouts */
@@ -3563,34 +3605,80 @@ dialog::backdrop {
   }
 }
 
-/* Payment Center Enhancement Styles */
-.calendar-search-wrap {
-  position: relative;
+.calendar-search-range {
   display: flex;
   align-items: center;
+  gap: 0.6rem;
+  background: #fdfaf8;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.05);
+  position: relative;
+  flex: 2;
+  min-width: 280px;
+}
+
+.calendar-search-range .date-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.calendar-search-range label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .payment-date-input {
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 999px;
-  padding: 0.6rem 1rem;
-  background: #fff;
-  font-size: 0.9rem;
+  border: none;
+  background: transparent;
+  padding: 0.1rem 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
   cursor: pointer;
-  min-width: 140px;
-  color: #333;
+  min-width: 100px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.date-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  position: relative;
+}
+
+.cal-icon {
+  color: var(--accent);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+/* Hide default browser date icons */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  color: transparent;
+  background: transparent;
+  cursor: pointer;
 }
 
 .payment-date-input:focus {
   outline: none;
-  border-color: var(--accent);
 }
 
-.clear-date-btn {
-  position: absolute;
-  right: 10px;
-  background: #f0f0f0;
-  border: none;
+.calendar-search-range .clear-date-btn {
+  background: rgba(0,0,0,0.05);
   border-radius: 50%;
   width: 18px;
   height: 18px;
@@ -3599,8 +3687,9 @@ dialog::backdrop {
   justify-content: center;
   font-size: 12px;
   cursor: pointer;
-  color: #666;
-  z-index: 2;
+  border: none;
+  color: var(--muted);
+  margin-left: 0.2rem;
 }
 
 /* Fix for Newest First breaking in two lines */
@@ -3608,8 +3697,36 @@ dialog::backdrop {
   white-space: nowrap;
 }
 
+.custom-select-wrap.payment-status-filter {
+  min-width: 130px;
+}
+
+.custom-select-wrap.payment-price-filter {
+  min-width: 140px;
+}
+
 .custom-select-wrap.payment-sort-filter {
-  min-width: 150px;
+  min-width: 160px;
+}
+
+.refresh-btn {
+  background: white;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(0,0,0,0.05);
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+  background: var(--surface);
+  transform: rotate(45deg);
 }
 
 .payments-actions {
@@ -3629,52 +3746,124 @@ dialog::backdrop {
   border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-/* Unified Bar Styles */
 .payments-unified-bar {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: 0.75rem;
   background: #fff;
-  padding: 0.6rem 1.8rem;
+  padding: 0.4rem 0.6rem 0.4rem 1.2rem;
   border-radius: 999px;
   box-shadow: 0 4px 25px rgba(0, 0, 0, 0.06);
   margin-bottom: 2.5rem;
   flex-wrap: nowrap;
   border: 1px solid rgba(0, 0, 0, 0.05);
   width: 100%;
+  position: relative;
+  z-index: 10;
 }
 
-.status-toggle-wrap-new {
-  display: flex;
-  background: #f7f3f0;
-  padding: 0.3rem;
-  border-radius: 999px;
-  gap: 0.2rem;
-  margin-left: 1rem;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+.search-wrap-new {
+  flex: 1.5;
+  min-width: 200px;
 }
 
-.status-pill {
+.search-input-container {
+  width: 100%;
+}
+
+.payment-search-input {
+  width: 100%;
   border: none;
   background: transparent;
-  padding: 0.4rem 1.2rem;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.payment-search-input:focus {
+  outline: none;
+}
+
+/* Removed old calendar picker styles */
+
+/* Custom Select Component Styles */
+.custom-select-wrap {
+  position: relative;
+  cursor: pointer;
+}
+
+.select-trigger {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 999px;
+  padding: 0.5rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #6c655f;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  color: var(--text);
+  transition: all 0.2s;
+  min-height: 38px;
   white-space: nowrap;
 }
 
-.status-pill.active {
-  background: #fff;
-  color: #000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.select-trigger:hover {
+  border-color: var(--accent);
+  background: #fffafa;
 }
 
-/* Calendar Theming */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(47%) sepia(85%) saturate(3015%) hue-rotate(345deg) brightness(101%) contrast(89%);
-  cursor: pointer;
+.select-trigger.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
+
+.select-chevron {
+  color: var(--muted);
+  display: flex;
+  transition: transform 0.2s;
+}
+
+.select-trigger.active .select-chevron {
+  transform: rotate(180deg);
+}
+
+.select-options-card {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  min-width: 180px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  z-index: 9999;
+  overflow: hidden;
+  animation: selectFadeIn 0.2s ease;
+}
+
+@keyframes selectFadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.select-option {
+  padding: 0.7rem 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  transition: all 0.2s;
+}
+
+.select-option:hover {
+  background: #fff5f5;
+  color: var(--accent);
+}
+
+.select-option.selected {
+  background: #fff1f1;
+  color: var(--accent);
+  font-weight: 700;
+}
