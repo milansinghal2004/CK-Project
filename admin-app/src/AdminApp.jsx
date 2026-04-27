@@ -1042,16 +1042,72 @@ export function AdminApp() {
             ) : (
               <>
                 <div className="kpi-grid" style={{ marginTop: "0.7rem" }}>
-                  <Kpi title="Orders" value={analytics.summary?.orders || 0} />
+                  <Kpi title="Total Orders" value={analytics.summary?.orders || 0} />
                   <Kpi title="Revenue" value={`Rs ${analytics.summary?.revenue || 0}`} />
-                  <Kpi title="Avg order value" value={`Rs ${analytics.summary?.aov || 0}`} />
+                  <Kpi title="Avg Order Value" value={`Rs ${analytics.summary?.aov || 0}`} />
                   <Kpi title="Delivered" value={analytics.summary?.delivered || 0} />
                   <Kpi title="Cancelled" value={analytics.summary?.cancelled || 0} />
-                  <Kpi title="Pending payments" value={analytics.summary?.pendingPayments || 0} />
+                  <Kpi title="Pending Payments" value={analytics.summary?.pendingPayments || 0} />
+                </div>
+
+                {/* Main Trend Chart */}
+                <div style={{ marginTop: "1.2rem" }}>
+                  <ChartCard title="Revenue Trend" subtitle="Daily revenue tracking">
+                    <LineChart 
+                      color="#3b82f6"
+                      data={(analytics.dailyTrends || []).map(d => ({
+                        label: new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+                        value: d.revenue
+                      }))} 
+                      valueSuffix=" Rs"
+                    />
+                  </ChartCard>
+                </div>
+
+                <div className="analytics-section-grid">
+                  <ChartCard title="Order Status" subtitle="Fulfillment breakdown">
+                    <DonutChart 
+                      data={(analytics.statuses || []).map(s => ({ label: s.status, value: s.count }))} 
+                      centerTitle={analytics.summary?.orders || 0}
+                      centerLabel="Orders"
+                    />
+                  </ChartCard>
+                  
+                  <ChartCard title="Category Distribution" subtitle="Top selling categories">
+                    <DonutChart 
+                      data={(analytics.categoryDist || []).map(c => ({ label: c.category, value: c.qty }))} 
+                      centerTitle={analytics.categoryDist?.length || 0}
+                      centerLabel="Items"
+                    />
+                  </ChartCard>
+
+                  <ChartCard title="Customer Insights" subtitle="New vs Returning">
+                    <div style={{ padding: '1rem 0' }}>
+                      <div className="detail-block" style={{ marginBottom: '1rem', textAlign: 'center' }}>
+                        <div className="kicker">Retention Rate</div>
+                        <h2 style={{ color: 'var(--accent)', fontSize: '2.4rem', margin: '0.4rem 0' }}>
+                          {analytics.customerStats?.new_customers ? 
+                            Math.round((analytics.customerStats.returning_customers / (analytics.customerStats.new_customers + analytics.customerStats.returning_customers)) * 100) : 0}%
+                        </h2>
+                      </div>
+                      <table className="perf-table">
+                        <tbody>
+                          <tr>
+                            <td className="perf-name">New Customers</td>
+                            <td className="perf-val">{analytics.customerStats?.new_customers || 0}</td>
+                          </tr>
+                          <tr>
+                            <td className="perf-name">Returning</td>
+                            <td className="perf-val">{analytics.customerStats?.returning_customers || 0}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </ChartCard>
                 </div>
 
                 <div className="analytics-grid" style={{ marginTop: "1rem" }}>
-                  <ChartCard title="Peak hours (orders)" subtitle="Hover bars to inspect">
+                  <ChartCard title="Peak Hours" subtitle="Orders by hour of day">
                     <BarChart
                       data={(analytics.hourly || []).map((h) => ({
                         key: String(h.hour).padStart(2, "0"),
@@ -1061,110 +1117,61 @@ export function AdminApp() {
                       valueSuffix=" orders"
                     />
                   </ChartCard>
-                  <ChartCard title="Payment modes" subtitle="Hover bars to inspect">
-                    <BarChart
-                      data={(analytics.paymentModes || []).map((p) => ({
-                        key: String(p.mode || ""),
-                        label: String(p.mode || ""),
-                        value: Number(p.count || 0)
-                      }))}
-                      valueSuffix=""
-                    />
+
+                  <ChartCard title="Chef Performance" subtitle="Items handled by kitchen staff">
+                    <div style={{ marginTop: '0.5rem' }}>
+                      {!analytics.chefPerf?.length ? (
+                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.9rem' }}>
+                          <p>No chef performance data available for this period.</p>
+                        </div>
+                      ) : (
+                        <table className="perf-table">
+                          <thead>
+                            <tr style={{ borderBottom: '2px solid var(--line)' }}>
+                              <th align="left" style={{ padding: '0.5rem 0', fontSize: '0.8rem', color: 'var(--muted)' }}>CHEF NAME</th>
+                              <th align="right" style={{ padding: '0.5rem 0', fontSize: '0.8rem', color: 'var(--muted)' }}>ITEMS</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {analytics.chefPerf.map((c, i) => (
+                              <tr key={i}>
+                                <td className="perf-name">{c.name}</td>
+                                <td className="perf-val">{c.items_handled}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
                   </ChartCard>
                 </div>
 
                 <div className="analytics-grid" style={{ marginTop: "1rem" }}>
-                  <ChartCard title="Top items (by quantity)" subtitle="Top 10">
-                    <BarChart
+                  <ChartCard title="Top Items (Quantity)" subtitle="Best sellers">
+                    <HorizontalBarChart
                       data={(analytics.topItems || []).slice(0, 10).map((it) => ({
                         key: String(it.name || ""),
                         label: String(it.name || ""),
                         value: Number(it.qty || 0),
-                        metaRight: `Rs ${Number(it.revenue || 0)}`
+                        metaRight: `Total Revenue: Rs ${Number(it.revenue || 0)}`
                       }))}
                       maxLabelChars={18}
-                      valueSuffix=""
                     />
                   </ChartCard>
-                  <ChartCard title="Top customers (by orders)" subtitle="Top 10">
-                    <BarChart
+                  
+                  <ChartCard title="Top Customers (Spending)" subtitle="Valued patrons">
+                    <HorizontalBarChart
                       data={(analytics.topCustomers || []).slice(0, 10).map((c) => ({
                         key: `${c.phone || ""}-${c.name || ""}`,
                         label: `${String(c.name || "Customer")} (${String(c.phone || "").slice(-4)})`,
-                        value: Number(c.orders || 0),
-                        metaRight: `Rs ${Number(c.spend || 0)}`
+                        value: Number(c.spend || 0),
+                        metaRight: `${c.orders} orders placed`,
+                        valueSuffix: " Rs"
                       }))}
                       maxLabelChars={18}
-                      valueSuffix=""
+                      valueSuffix=" Rs"
                     />
                   </ChartCard>
-                </div>
-
-                <div className="orders-layout" style={{ marginTop: "1rem" }}>
-                  <div>
-                    <h3>Top items</h3>
-                    {!analytics.topItems?.length ? (
-                      <p>No data.</p>
-                    ) : (
-                      <div className="admin-orders-grid">
-                        {analytics.topItems.slice(0, 10).map((it) => (
-                          <article className="admin-order-card" key={it.name}>
-                            <h4>{it.name}</h4>
-                            <p><span className="chip">Qty {it.qty}</span> <span className="chip">Rs {it.revenue}</span></p>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3>Top customers</h3>
-                    {!analytics.topCustomers?.length ? (
-                      <p>No data.</p>
-                    ) : (
-                      <div className="admin-orders-grid">
-                        {analytics.topCustomers.slice(0, 10).map((c) => (
-                          <article className="admin-order-card" key={`${c.phone}-${c.name}`}>
-                            <h4>{c.name || "Customer"}</h4>
-                            <p>{c.phone}</p>
-                            <p><span className="chip">Orders {c.orders}</span> <span className="chip">Rs {c.spend}</span></p>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="orders-layout" style={{ marginTop: "1rem" }}>
-                  <div>
-                    <h3>Payment modes</h3>
-                    {!analytics.paymentModes?.length ? (
-                      <p>No data.</p>
-                    ) : (
-                      <div className="admin-orders-grid">
-                        {analytics.paymentModes.map((p) => (
-                          <article className="admin-order-card" key={p.mode}>
-                            <h4>{p.mode}</h4>
-                            <p><span className="chip">{p.count}</span></p>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3>Peak hours</h3>
-                    {!analytics.hourly?.length ? (
-                      <p>No data.</p>
-                    ) : (
-                      <div className="admin-orders-grid">
-                        {analytics.hourly.map((h) => (
-                          <article className="admin-order-card" key={h.hour}>
-                            <h4>{String(h.hour).padStart(2, "0")}:00</h4>
-                            <p><span className="chip">{h.count} orders</span></p>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </>
             )}
@@ -1494,25 +1501,39 @@ function ChartCard({ title, subtitle, children }) {
   );
 }
 
-function BarChart({ data, valueSuffix = "", maxLabelChars = 24 }) {
+const CHART_PALETTE = [
+  { main: "#ef4444", dark: "#c73232" }, // Red
+  { main: "#3b82f6", dark: "#2563eb" }, // Blue
+  { main: "#10b981", dark: "#059669" }, // Green
+  { main: "#f59e0b", dark: "#d97706" }, // Orange
+  { main: "#8b5cf6", dark: "#7c3aed" }, // Purple
+  { main: "#ec4899", dark: "#db2777" }, // Pink
+  { main: "#06b6d4", dark: "#0891b2" }, // Cyan
+  { main: "#6366f1", dark: "#4f46e5" }, // Indigo
+];
+
+function BarChart({ data, valueSuffix = "", maxLabelChars = 14 }) {
   const [tip, setTip] = useState(null);
   const max = Math.max(1, ...(data || []).map((d) => Number(d.value || 0)));
 
-  function onLeave() {
-    setTip(null);
-  }
-
   return (
-    <div className="chart-wrap" onMouseLeave={onLeave}>
-      {tip ? (
+    <div className="chart-wrap" onMouseLeave={() => setTip(null)}>
+      {tip && (
         <div className="chart-tooltip" style={{ left: tip.x, top: tip.y }}>
           <strong>{tip.title}</strong>
           <div>{tip.value}</div>
           {tip.metaRight ? <div className="chart-tip-meta">{tip.metaRight}</div> : null}
         </div>
-      ) : null}
+      )}
       <svg viewBox="0 0 1000 320" preserveAspectRatio="none" className="chart-svg">
-        {/* Bars area */}
+        <defs>
+          {CHART_PALETTE.map((c, i) => (
+            <linearGradient id={`barGrad-${i}`} key={i} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={c.main} />
+              <stop offset="100%" stopColor={c.dark} />
+            </linearGradient>
+          ))}
+        </defs>
         {(data || []).map((d, idx) => {
           const v = Math.max(0, Number(d.value || 0));
           const barW = 1000 / Math.max(1, data.length);
@@ -1520,15 +1541,20 @@ function BarChart({ data, valueSuffix = "", maxLabelChars = 24 }) {
           const h = (v / max) * 240;
           const y = 40 + (240 - h);
           const label = String(d.label || d.key || "");
-          const showLabel = label.length > maxLabelChars ? `${label.slice(0, maxLabelChars - 1)}…` : label;
+          const colorIdx = idx % CHART_PALETTE.length;
+          
+          const shouldShowLabel = data.length > 10 ? (idx % 2 === 0) : true;
+          const showLabel = shouldShowLabel ? (label.length > maxLabelChars ? `${label.slice(0, maxLabelChars - 1)}…` : label) : "";
+          
           return (
             <g key={d.key || `${idx}`}>
               <rect
-                x={x + 8}
+                x={x + barW * 0.15}
                 y={y}
-                width={Math.max(6, barW - 16)}
+                width={barW * 0.7}
                 height={h}
-                rx="10"
+                rx="6"
+                style={{ fill: `url(#barGrad-${colorIdx})` }}
                 className="chart-bar"
                 onMouseMove={(e) => {
                   const rect = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
@@ -1543,14 +1569,191 @@ function BarChart({ data, valueSuffix = "", maxLabelChars = 24 }) {
                   });
                 }}
               />
-              <text x={x + barW / 2} y={306} textAnchor="middle" className="chart-label">
-                {showLabel}
-              </text>
+              {shouldShowLabel && (
+                <text x={x + barW / 2} y={306} textAnchor="middle" className="chart-label" style={{ fontSize: '18px' }}>
+                  {showLabel}
+                </text>
+              )}
             </g>
           );
         })}
-        {/* Baseline */}
         <line x1="0" y1="280" x2="1000" y2="280" className="chart-axis" />
+      </svg>
+    </div>
+  );
+}
+
+function HorizontalBarChart({ data, valueSuffix = "", maxLabelChars = 20 }) {
+  const [tip, setTip] = useState(null);
+  const max = Math.max(1, ...(data || []).map((d) => Number(d.value || 0)));
+
+  return (
+    <div className="chart-wrap" onMouseLeave={() => setTip(null)}>
+      {tip && (
+        <div className="chart-tooltip" style={{ left: tip.x, top: tip.y }}>
+          <strong>{tip.title}</strong>
+          <div>{tip.value}</div>
+          {tip.metaRight ? <div className="chart-tip-meta">{tip.metaRight}</div> : null}
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', padding: '0.6rem' }}>
+        {(data || []).map((d, idx) => {
+          const v = Math.max(0, Number(d.value || 0));
+          const w = (v / max) * 100;
+          const label = String(d.label || d.key || "");
+          const showLabel = label.length > maxLabelChars ? `${label.slice(0, maxLabelChars - 1)}…` : label;
+          const color = CHART_PALETTE[idx % CHART_PALETTE.length];
+          
+          return (
+            <div key={d.key || idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div 
+                style={{ width: '140px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} 
+                title={label}
+              >
+                {showLabel}
+              </div>
+              <div style={{ flex: 1, background: '#fff9f4', borderRadius: '999px', height: '16px', position: 'relative', overflow: 'hidden', border: '1px solid var(--line)' }}>
+                <div 
+                  style={{ 
+                    width: `${w}%`, 
+                    height: '100%', 
+                    background: `linear-gradient(90deg, ${color.main}, ${color.dark})`, 
+                    borderRadius: '999px', 
+                    transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)' 
+                  }} 
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.parentElement.getBoundingClientRect();
+                    setTip({ 
+                      x: e.clientX - rect.left + 140, 
+                      y: e.clientY - rect.top - 40, 
+                      title: label, 
+                      value: `${v}${valueSuffix}`,
+                      metaRight: d.metaRight || ""
+                    });
+                  }}
+                />
+              </div>
+              <div style={{ width: '70px', fontSize: '0.8rem', fontWeight: 800, color: 'var(--text)' }}>
+                {v}{valueSuffix}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+function LineChart({ data, valueSuffix = "", color = "#ef4444" }) {
+  const [tip, setTip] = useState(null);
+  const vals = (data || []).map(d => Number(d.value || 0));
+  const max = Math.max(1, ...vals);
+  const min = Math.min(0, ...vals);
+  const range = max - min;
+  
+  const width = 1000;
+  const height = 280;
+  const padding = 40;
+  
+  const points = (data || []).map((d, i) => {
+    const x = (i / Math.max(1, data.length - 1)) * (width - padding * 2) + padding;
+    const y = height - ((d.value - min) / range) * (height - padding * 2) - padding;
+    return { x, y, label: d.label, value: d.value };
+  });
+
+  const pathD = points.length > 0 ? `M ${points[0].x} ${points[0].y} ` + points.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ") : "";
+  const areaD = points.length > 0 ? `${pathD} L ${points[points.length-1].x} ${height} L ${points[0].x} ${height} Z` : "";
+
+  return (
+    <div className="chart-wrap" onMouseLeave={() => setTip(null)}>
+      {tip && (
+        <div className="chart-tooltip" style={{ left: tip.x, top: tip.y }}>
+          <strong>{tip.title}</strong>
+          <div>{tip.value}</div>
+        </div>
+      )}
+      <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={areaD} className="chart-area" />
+        <path d={pathD} className="chart-line" style={{ stroke: color }} />
+        {points.map((p, i) => (
+          <circle 
+            key={i} 
+            cx={p.x} 
+            cy={p.y} 
+            r="5" 
+            className="chart-dot" 
+            style={{ stroke: color }}
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+              const px = rect ? e.clientX - rect.left : 0;
+              const py = rect ? e.clientY - rect.top : 0;
+              setTip({ x: px, y: py - 40, title: p.label, value: `${p.value}${valueSuffix}` });
+            }}
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function DonutChart({ data, centerTitle, centerLabel }) {
+  const [tip, setTip] = useState(null);
+  const total = (data || []).reduce((sum, d) => sum + Number(d.value || 0), 0);
+  let currentAngle = -90;
+  const radius = 120;
+  const strokeWidth = 20;
+  const center = 160;
+
+  return (
+    <div className="chart-wrap" style={{ display: 'flex', justifyContent: 'center' }} onMouseLeave={() => setTip(null)}>
+      {tip && (
+        <div className="chart-tooltip" style={{ left: tip.x, top: tip.y }}>
+          <strong>{tip.title}</strong>
+          <div>{tip.value} ({tip.percent}%)</div>
+        </div>
+      )}
+      <svg viewBox="0 0 320 320" style={{ width: '260px', height: '260px' }}>
+        {(data || []).map((d, i) => {
+          const percent = (d.value / total) * 100;
+          const angle = (d.value / total) * 360;
+          const dashArray = (percent * 2 * Math.PI * radius) / 100;
+          const dashOffset = (currentAngle * 2 * Math.PI * radius) / 360;
+          const color = `hsl(${(i * 137.5) % 360}, 70%, 55%)`;
+          
+          const segment = (
+            <circle
+              key={i}
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="transparent"
+              stroke={color}
+              strokeWidth={strokeWidth}
+              strokeDasharray={`${dashArray} 1000`}
+              strokeDashoffset={-dashOffset}
+              className="donut-segment"
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                setTip({ 
+                  x: e.clientX - rect.left, 
+                  y: e.clientY - rect.top - 40, 
+                  title: d.label, 
+                  value: d.value,
+                  percent: percent.toFixed(1)
+                });
+              }}
+            />
+          );
+          currentAngle += angle;
+          return segment;
+        })}
+        <text x={center} y={center - 10} textAnchor="middle" className="donut-center-text">{centerTitle}</text>
+        <text x={center} y={center + 20} textAnchor="middle" className="donut-center-label">{centerLabel}</text>
       </svg>
     </div>
   );

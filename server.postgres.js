@@ -1946,7 +1946,11 @@ async function handleApi(req, res, urlObj) {
       hourlyRes,
       topItemsRes,
       topCustomersRes,
-      pendingPaymentsRes
+      pendingPaymentsRes,
+      dailyTrendsRes,
+      categoryDistRes,
+      chefPerfRes,
+      customerStatsRes
     ] = await Promise.all([
       pool.query(
         `SELECT
@@ -2016,11 +2020,52 @@ async function handleApi(req, res, urlObj) {
          AND LOWER(payment_status) IN ('pending','verification pending')`,
         params
       ).catch(async () => {
-        // Fallback for when whereSql is empty (can't prepend AND)
         const w = whereSql ? `${whereSql} AND` : "WHERE";
         const sql = `SELECT COUNT(*)::int AS pendingPayments FROM orders ${w} LOWER(payment_status) IN ('pending','verification pending')`;
         return await pool.query(sql, params);
-      })
+      }),
+      // Daily Trends
+      pool.query(
+        `SELECT DATE(created_at) AS date, SUM(total)::int AS revenue, COUNT(*)::int AS count
+         FROM orders
+         ${whereSql}
+         GROUP BY date
+         ORDER BY date ASC`,
+        params
+      ),
+      // Category Distribution
+      pool.query(
+        `SELECT mi.category, SUM(oi.quantity)::int AS qty
+         FROM order_items oi
+         JOIN menu_items mi ON mi.name = oi.item_name
+         JOIN orders o ON o.id = oi.order_id
+         ${where.length ? `WHERE ${where.map((w) => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
+         GROUP BY mi.category
+         ORDER BY qty DESC`,
+        params
+      ),
+      // Chef Performance
+      pool.query(
+        `SELECT c.name, COUNT(oia.item_id)::int AS items_handled
+         FROM chefs c
+         LEFT JOIN order_item_assignments oia ON oia.chef_id = c.id
+         LEFT JOIN orders o ON o.id = oia.order_id
+         ${where.length ? `WHERE ${where.map((w) => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
+         GROUP BY c.name
+         ORDER BY items_handled DESC`,
+        params
+      ),
+      // Customer Stats (Overall Retention)
+      pool.query(
+        `SELECT
+           COUNT(*) FILTER (WHERE order_count = 1)::int AS new_customers,
+           COUNT(*) FILTER (WHERE order_count > 1)::int AS returning_customers
+         FROM (
+           SELECT customer_phone, COUNT(*) AS order_count
+           FROM orders
+           GROUP BY customer_phone
+         ) t`
+      )
     ]);
 
     const summary = summaryRes.rows[0] || {};
@@ -2034,7 +2079,11 @@ async function handleApi(req, res, urlObj) {
       paymentModes: paymentModeRes.rows || [],
       hourly: hourlyRes.rows || [],
       topItems: topItemsRes.rows || [],
-      topCustomers: topCustomersRes.rows || []
+      topCustomers: topCustomersRes.rows || [],
+      dailyTrends: dailyTrendsRes.rows || [],
+      categoryDist: categoryDistRes.rows || [],
+      chefPerf: chefPerfRes.rows || [],
+      customerStats: customerStatsRes.rows[0] || {}
     });
   }
 
