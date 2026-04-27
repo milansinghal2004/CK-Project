@@ -1,11 +1,51 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+function CustomSelect({ value, onChange, options, className, disabled }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedLabel = options.find(o => String(o.value) === String(value))?.label || value || "Select...";
+
+  return (
+    <div className={`custom-select-wrap ${className || ""} ${disabled ? "disabled" : ""}`} ref={containerRef} style={{ pointerEvents: disabled ? 'none' : 'auto', opacity: disabled ? 0.6 : 1 }}>
+      <div className={`select-trigger ${isOpen ? "active" : ""}`} onClick={() => !disabled && setIsOpen(!isOpen)}>
+        <span>{selectedLabel}</span>
+        <span className="select-chevron">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </span>
+      </div>
+      {isOpen && (
+        <div className="select-options-card">
+          {options.map((opt) => (
+            <div 
+              key={opt.value} 
+              className={`select-option ${String(opt.value) === String(value) ? "selected" : ""}`}
+              onClick={() => { onChange({ target: { value: opt.value } }); setIsOpen(false); }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const STATUS_OPTIONS = ["Confirmed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"];
 const VIEWS = {
   TODAY: "today",
   PAST_ORDERS: "past-orders",
   PAST_TICKETS: "past-tickets",
-  ANALYTICS: "analytics"
+  ANALYTICS: "analytics",
+  MENU: "menu"
 };
 
 export function AdminApp() {
@@ -20,6 +60,7 @@ export function AdminApp() {
   const [orderSearch, setOrderSearch] = useState("");
   const [ticketStatus, setTicketStatus] = useState("");
   const [ticketSearch, setTicketSearch] = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
   const [activeOrder, setActiveOrder] = useState(null);
   const [itemChefMap, setItemChefMap] = useState({});
   const [itemAssignGlow, setItemAssignGlow] = useState({});
@@ -28,6 +69,8 @@ export function AdminApp() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginNotice, setLoginNotice] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [menuList, setMenuList] = useState([]);
+  const [isSavingMenu, setIsSavingMenu] = useState({});
   const [apiBase, setApiBase] = useState(window.location.origin);
   const [view, setView] = useState(() => {
     try {
@@ -55,12 +98,22 @@ export function AdminApp() {
   const todaysOrders = useMemo(() => {
     return orders
       .filter((o) => isToday(o.createdAt))
+      .filter((o) => {
+        if (statusFilter && o.status !== statusFilter) return false;
+        if (paymentStatusFilter && o.paymentStatus !== paymentStatusFilter) return false;
+        const q = String(orderSearch || "").trim().toLowerCase();
+        if (q) {
+          const hay = `${o.id} ${o.customerName || ""} ${o.customerPhone || ""}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      })
       .sort((a, b) => {
         if (a.status === "Cancelled" && b.status !== "Cancelled") return 1;
         if (a.status !== "Cancelled" && b.status === "Cancelled") return -1;
         return new Date(b.createdAt) - new Date(a.createdAt);
       });
-  }, [orders]);
+  }, [orders, statusFilter, paymentStatusFilter, orderSearch]);
   const pastOrders = useMemo(() => orders.filter((o) => !isToday(o.createdAt)), [orders]);
   const todaysTickets = useMemo(() => tickets.filter((t) => isToday(t.createdAt)), [tickets]);
   const pastTickets = useMemo(() => tickets.filter((t) => !isToday(t.createdAt)), [tickets]);
@@ -71,12 +124,14 @@ export function AdminApp() {
       pastOrders
         .filter((o) => isWithinRange(o.createdAt, pastRange))
         .filter((o) => {
+          if (statusFilter && o.status !== statusFilter) return false;
+          if (paymentStatusFilter && o.paymentStatus !== paymentStatusFilter) return false;
           const q = String(orderSearch || "").trim().toLowerCase();
           if (!q) return true;
           const hay = `${o.id} ${o.customerName || ""} ${o.customerPhone || ""}`.toLowerCase();
           return hay.includes(q);
         }),
-    [pastOrders, pastRange, orderSearch]
+    [pastOrders, pastRange, orderSearch, statusFilter, paymentStatusFilter]
   );
   const filteredPastTickets = useMemo(
     () =>
@@ -121,8 +176,8 @@ export function AdminApp() {
 
   useEffect(() => {
     if (!adminKey || !apiBase) return;
-    if (view !== VIEWS.ANALYTICS) return;
-    loadAnalytics();
+    if (view === VIEWS.ANALYTICS) loadAnalytics();
+    if (view === VIEWS.MENU) loadAdminMenu();
   }, [view, adminKey, apiBase, analyticsPreset, analyticsFrom, analyticsTo]);
 
   useEffect(() => {
@@ -237,10 +292,60 @@ export function AdminApp() {
     }
   }
 
+  async function loadAdminMenu() {
+    try {
+      const data = await api("/api/admin/menu");
+      setMenuList(data.items || []);
+      setNotice("Menu items loaded.");
+    } catch (error) {
+      setNotice(`Unable to load menu: ${error.message}`);
+    }
+  }
+
+  async function updateMenuItem(itemId, updates) {
+    setIsSavingMenu(prev => ({ ...prev, [itemId]: true }));
+    try {
+      await api(`/api/admin/menu/${itemId}`, {
+        method: "POST",
+        body: JSON.stringify(updates)
+      });
+      setNotice("Item updated successfully.");
+      await loadAdminMenu();
+    } catch (error) {
+      setNotice(`Failed to update item: ${error.message}`);
+    } finally {
+      setIsSavingMenu(prev => ({ ...prev, [itemId]: false }));
+    }
+  }
+
+  const filterToday = (status = "", payment = "") => {
+    setView(VIEWS.TODAY);
+    setStatusFilter(status);
+    setPaymentStatusFilter(payment);
+    setTimeout(() => {
+      document.getElementById("orders")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
+
+  const scrollToChefs = () => {
+    setView(VIEWS.TODAY);
+    setTimeout(() => {
+      document.getElementById("chefs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
+
+  const scrollToTickets = () => {
+    setView(VIEWS.TODAY);
+    setTimeout(() => {
+      document.getElementById("tickets")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
+
   async function refreshAll() {
     try {
       const orderParams = new URLSearchParams();
       if (statusFilter) orderParams.set("status", statusFilter);
+      if (paymentStatusFilter) orderParams.set("paymentStatus", paymentStatusFilter);
       if (orderSearch) orderParams.set("search", orderSearch);
 
       const ticketParams = new URLSearchParams();
@@ -565,7 +670,16 @@ export function AdminApp() {
           </nav>
           <div className="topbar-actions">
             <span className="chip">Manager: {adminUser || "manager"}</span>
-            <a className="btn subtle" href="/customer-react/">Customer Site</a>
+            <button 
+              type="button" 
+              className={`btn subtle ${view === VIEWS.MENU ? 'accent' : ''}`} 
+              onClick={() => {
+                setView(VIEWS.MENU);
+                document.getElementById("menu-management")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              Manage Menu
+            </button>
             <button className="btn subtle" onClick={logout}>Logout</button>
           </div>
         </div>
@@ -582,15 +696,15 @@ export function AdminApp() {
           </div>
           <div className="admin-notice">{notice}</div>
           <div className="kpi-grid">
-            <Kpi title="Today's Orders" value={metrics.total_orders || 0} />
-            <Kpi title="Active Orders" value={metrics.active_orders || 0} />
-            <Kpi title="Delivered Today" value={metrics.delivered_orders || 0} />
-            <Kpi title="Cancelled Today" value={metrics.cancelled_orders || 0} />
-            <Kpi title="Pending Payments" value={metrics.pending_payments || 0} />
-            <Kpi title="Pending Verification" value={metrics.pending_verifications || 0} />
-            <Kpi title="Revenue Today" value={`Rs ${metrics.gross_revenue || 0}`} />
-            <Kpi title="Chefs On Duty" value={`${metrics.on_duty_chefs || 0}/${metrics.total_chefs || 0}`} />
-            <Kpi title="Open Tickets" value={metrics.open_tickets || 0} />
+            <Kpi title="Today's Orders" value={metrics.total_orders || 0} onClick={() => filterToday("", "")} />
+            <Kpi title="Active Orders" value={metrics.active_orders || 0} onClick={() => filterToday("", "")} />
+            <Kpi title="Delivered Today" value={metrics.delivered_orders || 0} onClick={() => filterToday("Delivered")} />
+            <Kpi title="Cancelled Today" value={metrics.cancelled_orders || 0} onClick={() => filterToday("Cancelled")} />
+            <Kpi title="Pending Payments" value={metrics.pending_payments || 0} onClick={() => filterToday("", "Pending")} />
+            <Kpi title="Pending Verification" value={metrics.pending_verifications || 0} onClick={() => filterToday("", "Verification Pending")} />
+            <Kpi title="Revenue Today" value={`Rs ${metrics.gross_revenue || 0}`} onClick={() => setView(VIEWS.ANALYTICS)} />
+            <Kpi title="Chefs On Duty" value={`${metrics.on_duty_chefs || 0}/${metrics.total_chefs || 0}`} onClick={scrollToChefs} />
+            <Kpi title="Open Tickets" value={metrics.open_tickets || 0} onClick={scrollToTickets} />
           </div>
         </section>
 
@@ -602,10 +716,23 @@ export function AdminApp() {
                 <h2>Today’s Orders</h2>
               </div>
               <div className="order-filters">
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                  <option value="">All statuses</option>
-                  {STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
-                </select>
+                <CustomSelect 
+                  value={statusFilter} 
+                  onChange={(e) => setStatusFilter(e.target.value)} 
+                  options={[{ label: "All statuses", value: "" }, ...STATUS_OPTIONS.map(s => ({ label: s, value: s }))]} 
+                />
+                <CustomSelect 
+                  value={paymentStatusFilter} 
+                  onChange={(e) => setPaymentStatusFilter(e.target.value)} 
+                  options={[
+                    { label: "All payment", value: "" },
+                    { label: "Pending", value: "Pending" },
+                    { label: "Verification Pending", value: "Verification Pending" },
+                    { label: "Paid", value: "Paid" },
+                    { label: "COD", value: "Pay on Delivery" },
+                    { label: "Refunded", value: "Refunded" }
+                  ]} 
+                />
                 <input
                   type="search"
                   placeholder="Search by order/customer/phone"
@@ -646,18 +773,13 @@ export function AdminApp() {
 
                     <div className="card-right">
                       <div className="quick-actions">
-                        <select 
+                        <CustomSelect 
                           className="status-select" 
                           value={order.status} 
                           onChange={(e) => updateOrderStatus(order.id, e.target.value, "Quick update from dashboard")}
                           disabled={isCancelled || order.status === "Delivered"}
-                        >
-                          <option value="Confirmed">Confirmed</option>
-                          <option value="Preparing">Preparing</option>
-                          <option value="Out for Delivery">Out for Delivery</option>
-                          <option value="Delivered">Delivered</option>
-                          <option value="Cancelled">Cancelled</option>
-                        </select>
+                          options={STATUS_OPTIONS.map(s => ({ label: s, value: s }))}
+                        />
                         <button className="btn subtle small" onClick={() => openOrder(order.id)}>Details</button>
                       </div>
                     </div>
@@ -676,12 +798,16 @@ export function AdminApp() {
                 <h2>Past Orders</h2>
               </div>
               <div className="order-filters">
-                <select value={pastPreset} onChange={(e) => setPastPreset(e.target.value)}>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="last7">Last 7 days</option>
-                  <option value="last30">Last 30 days</option>
-                  <option value="custom">Custom range</option>
-                </select>
+                <CustomSelect 
+                  value={pastPreset} 
+                  onChange={(e) => setPastPreset(e.target.value)} 
+                  options={[
+                    { label: "Yesterday", value: "yesterday" },
+                    { label: "Last 7 days", value: "last7" },
+                    { label: "Last 30 days", value: "last30" },
+                    { label: "Custom range", value: "custom" }
+                  ]}
+                />
                 <input
                   type="date"
                   value={pastFrom}
@@ -758,11 +884,15 @@ export function AdminApp() {
             <div className="section-head">
               <div><p className="kicker">Customer Support</p><h2>Today’s Tickets</h2></div>
               <div className="order-filters">
-                <select value={ticketStatus} onChange={(e) => setTicketStatus(e.target.value)}>
-                  <option value="">All tickets</option>
-                  <option value="open">Open</option>
-                  <option value="closed">Closed</option>
-                </select>
+                <CustomSelect 
+                  value={ticketStatus} 
+                  onChange={(e) => setTicketStatus(e.target.value)} 
+                  options={[
+                    { label: "All tickets", value: "" },
+                    { label: "Open", value: "open" },
+                    { label: "Closed", value: "closed" }
+                  ]}
+                />
                 <input type="search" placeholder="Search ticket/order/customer" value={ticketSearch} onChange={(e) => setTicketSearch(e.target.value)} />
                 <button className="btn subtle" type="button" onClick={() => setView(VIEWS.PAST_TICKETS)}>
                   View past tickets
@@ -805,12 +935,16 @@ export function AdminApp() {
             <div className="section-head">
               <div><p className="kicker">History</p><h2>Past Tickets</h2></div>
               <div className="order-filters">
-                <select value={pastPreset} onChange={(e) => setPastPreset(e.target.value)}>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="last7">Last 7 days</option>
-                  <option value="last30">Last 30 days</option>
-                  <option value="custom">Custom range</option>
-                </select>
+                <CustomSelect 
+                  value={pastPreset} 
+                  onChange={(e) => setPastPreset(e.target.value)} 
+                  options={[
+                    { label: "Yesterday", value: "yesterday" },
+                    { label: "Last 7 days", value: "last7" },
+                    { label: "Last 30 days", value: "last30" },
+                    { label: "Custom range", value: "custom" }
+                  ]}
+                />
                 <input
                   type="date"
                   value={pastFrom}
@@ -870,12 +1004,16 @@ export function AdminApp() {
                 <h2>Analytics</h2>
               </div>
               <div className="order-filters">
-                <select value={analyticsPreset} onChange={(e) => setAnalyticsPreset(e.target.value)}>
-                  <option value="yesterday">Yesterday</option>
-                  <option value="last7">Last 7 days</option>
-                  <option value="last30">Last 30 days</option>
-                  <option value="custom">Custom range</option>
-                </select>
+                <CustomSelect 
+                  value={analyticsPreset} 
+                  onChange={(e) => setAnalyticsPreset(e.target.value)} 
+                  options={[
+                    { label: "Yesterday", value: "yesterday" },
+                    { label: "Last 7 days", value: "last7" },
+                    { label: "Last 30 days", value: "last30" },
+                    { label: "Custom range", value: "custom" }
+                  ]}
+                />
                 <input
                   type="date"
                   value={analyticsFrom}
@@ -1032,6 +1170,83 @@ export function AdminApp() {
             )}
           </section>
         ) : null}
+
+        {view === VIEWS.MENU ? (
+          <section className="section" id="menu-management">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Inventory</p>
+                <h2>Manage Menu</h2>
+              </div>
+              <button className="btn accent" onClick={loadAdminMenu}>Refresh Menu</button>
+            </div>
+            <div className="admin-notice">{notice}</div>
+            <div className="menu-manage-grid">
+              {!menuList.length ? (
+                <p>No menu items found.</p>
+              ) : (
+                menuList.map((item) => (
+                  <article 
+                    className={`menu-item-card ${item.available === false ? 'unavailable' : ''}`} 
+                    key={item.id}
+                    onClick={(e) => {
+                      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL' && e.target.tagName !== 'BUTTON') {
+                        e.currentTarget.querySelector('.edit-name')?.focus();
+                      }
+                    }}
+                  >
+                    <div className="item-main">
+                      <div className="item-img-wrap">
+                        <img src={item.image?.startsWith('http') ? item.image : `${apiBase}${item.image}`} alt={item.name} />
+                      </div>
+                      <div className="item-details">
+                        <input
+                          type="text"
+                          className="edit-name"
+                          defaultValue={item.name}
+                          onBlur={(e) => {
+                            if (e.target.value !== item.name) {
+                              updateMenuItem(item.id, { name: e.target.value });
+                            }
+                          }}
+                        />
+                        <div className="item-meta-edit">
+                          <div className="price-input-wrap">
+                            <span>Rs</span>
+                            <input
+                              type="number"
+                              className="edit-price"
+                              defaultValue={item.price}
+                              onBlur={(e) => {
+                                const newPrice = Number(e.target.value);
+                                if (newPrice !== item.price) {
+                                  updateMenuItem(item.id, { price: newPrice });
+                                }
+                              }}
+                            />
+                          </div>
+                          <span className="chip">{item.category}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="item-actions">
+                      <label className="toggle-label">
+                        <input
+                          type="checkbox"
+                          checked={item.available !== false}
+                          onChange={(e) => updateMenuItem(item.id, { available: e.target.checked })}
+                          disabled={isSavingMenu[item.id]}
+                        />
+                        <span className="toggle-text">{item.available !== false ? 'Available' : 'Out of Stock'}</span>
+                      </label>
+                      {isSavingMenu[item.id] && <span className="saving-indicator">Saving...</span>}
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
+          </section>
+        ) : null}
       </main>
 
       {activeOrder ? (
@@ -1129,15 +1344,17 @@ export function AdminApp() {
                   <li key={item.id} className={itemAssignGlow[item.id] ? "item-assign-success" : ""}>
                     <div><strong>{item.name}</strong> x {item.quantity}</div>
                     <div className="admin-order-actions" style={{ marginTop: "0.5rem" }}>
-                      <select data-item-id={item.id} value={itemChefMap[item.id] || ""} onChange={(e) => setItemChefMap((prev) => ({ ...prev, [item.id]: e.target.value }))}>
-                        <option value="" disabled={activeChefs.length === 0}>Assign chef</option>
-                        {!activeChefs.length ? <option value="" disabled>No active chef</option> : null}
-                        {activeChefs.map((chef) => (
-                          <option key={chef.id} value={chef.id}>
-                            {chef.name} ({chef.station}){chef.isOnDuty ? "" : " - Off Duty"}
-                          </option>
-                        ))}
-                      </select>
+                      <CustomSelect 
+                        value={itemChefMap[item.id] || ""} 
+                        onChange={(e) => setItemChefMap((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                        options={[
+                          { label: "Assign chef", value: "", disabled: activeChefs.length === 0 },
+                          ...activeChefs.map(c => ({ 
+                            label: `${c.name} (${c.station})${c.isOnDuty ? "" : " - Off Duty"}`, 
+                            value: c.id 
+                          }))
+                        ]}
+                      />
                       <button className="btn subtle" disabled={!itemChefMap[item.id]} onClick={() => assignChefToItem(activeOrder.id, item.id)}>Assign Chef</button>
                     </div>
                   </li>
@@ -1169,9 +1386,9 @@ export function AdminApp() {
   );
 }
 
-function Kpi({ title, value }) {
+function Kpi({ title, value, onClick }) {
   return (
-    <article className="kpi-card">
+    <article className={`kpi-card ${onClick ? 'clickable' : ''}`} onClick={onClick}>
       <p>{title}</p>
       <strong>{value}</strong>
     </article>

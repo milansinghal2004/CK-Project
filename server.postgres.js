@@ -556,6 +556,7 @@ async function handleApi(req, res, urlObj) {
   if (method === "GET" && pathname === "/api/admin/orders") {
     if (!isAdminAuthorized(req)) return sendError(res, 401, "Invalid admin key.");
     const status = String(urlObj.searchParams.get("status") || "").trim();
+    const paymentStatus = String(urlObj.searchParams.get("paymentStatus") || "").trim();
     const search = String(urlObj.searchParams.get("search") || "").trim().toLowerCase();
     const limit = Math.min(100, Math.max(10, Number(urlObj.searchParams.get("limit") || 40)));
     const params = [];
@@ -563,6 +564,10 @@ async function handleApi(req, res, urlObj) {
     if (status) {
       params.push(status);
       where.push(`o.status = $${params.length}`);
+    }
+    if (paymentStatus) {
+      params.push(paymentStatus);
+      where.push(`o.payment_status = $${params.length}`);
     }
     if (search) {
       params.push(`%${search}%`);
@@ -629,6 +634,41 @@ async function handleApi(req, res, urlObj) {
       assignedItems: r.assigned_items
     }));
     return sendJson(res, 200, { ok: true, orders });
+  }
+
+  if (method === "GET" && pathname === "/api/admin/menu") {
+    if (!isAdminAuthorized(req)) return sendError(res, 401, "Invalid admin key.");
+    const rows = await pool.query("SELECT id, name, price, is_active AS available FROM menu_items ORDER BY name ASC");
+    return sendJson(res, 200, { ok: true, items: rows.rows });
+  }
+
+  if (method === "POST" && pathname.startsWith("/api/admin/menu/")) {
+    if (!isAdminAuthorized(req)) return sendError(res, 401, "Invalid admin key.");
+    const parts = pathname.split("/").filter(Boolean);
+    const itemId = parts[3] || "";
+    const body = await parseBody(req);
+
+    const fields = [];
+    const params = [itemId];
+    if (body.name) {
+      params.push(body.name);
+      fields.push(`name = $${params.length}`);
+    }
+    if (body.price !== undefined) {
+      params.push(Number(body.price));
+      fields.push(`price = $${params.length}`);
+    }
+    if (body.available !== undefined) {
+      params.push(Boolean(body.available));
+      fields.push(`is_active = $${params.length}`);
+    }
+
+    if (fields.length === 0) return sendError(res, 400, "No fields to update.");
+
+    const sql = `UPDATE menu_items SET ${fields.join(", ")} WHERE id = $1 RETURNING *`;
+    const resRow = await queryOne(sql, params);
+    if (!resRow) return sendError(res, 404, "Menu item not found.");
+    return sendJson(res, 200, { ok: true, item: resRow });
   }
 
   if (method === "POST" && pathname.startsWith("/api/admin/orders/") && pathname.endsWith("/assign-chef") && !pathname.includes("/items/")) {

@@ -394,6 +394,27 @@ async function handleApi(req, res, urlObj) {
     return sendJson(res, 200, { ok: true, orders: list });
   }
 
+  if (method === "GET" && pathname === "/api/admin/menu") {
+    if (!isAdmin) return sendError(res, 401, "Invalid admin key.");
+    return sendJson(res, 200, { ok: true, items: menu });
+  }
+
+  if (method === "POST" && pathname.startsWith("/api/admin/menu/")) {
+    if (!isAdmin) return sendError(res, 401, "Invalid admin key.");
+    const parts = pathname.split("/").filter(Boolean);
+    const itemId = parts[3] || "";
+    const body = await parseBody(req);
+    const idx = menu.findIndex((m) => m.id === itemId);
+    if (idx === -1) return sendError(res, 404, "Menu item not found.");
+
+    if (body.name) menu[idx].name = body.name;
+    if (body.price !== undefined) menu[idx].price = Number(body.price);
+    if (body.available !== undefined) menu[idx].available = Boolean(body.available);
+
+    await writeJson(DATA_FILES.menu, menu);
+    return sendJson(res, 200, { ok: true, item: menu[idx] });
+  }
+
   if (method === "GET" && pathname === "/api/admin/chefs") {
     if (!isAdmin) return sendError(res, 401, "Invalid admin key.");
     return sendJson(res, 200, { ok: true, chefs: [] });
