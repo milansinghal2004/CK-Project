@@ -1921,6 +1921,8 @@ async function handleApi(req, res, urlObj) {
     if (!isAdminAuthorized(req)) return sendError(res, 401, "Invalid admin key.");
     const fromRaw = String(urlObj.searchParams.get("from") || "").trim();
     const toRaw = String(urlObj.searchParams.get("to") || "").trim();
+    const groupByParam = String(urlObj.searchParams.get("groupBy") || "day").toLowerCase();
+    
     const from = fromRaw ? new Date(fromRaw) : null;
     const to = toRaw ? new Date(toRaw) : null;
     if ((fromRaw && Number.isNaN(from?.getTime?.())) || (toRaw && Number.isNaN(to?.getTime?.()))) {
@@ -1938,6 +1940,17 @@ async function handleApi(req, res, urlObj) {
       where.push(`created_at <= $${params.length}::timestamptz`);
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const whereSqlO = where.length ? `WHERE ${where.map(w => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : "";
+
+    // Helper to run query and return empty rows on error
+    const q = async (sql, p) => {
+      try {
+        return await pool.query(sql, p);
+      } catch (err) {
+        console.error("Analytics Query Error:", err.message, "\nSQL:", sql);
+        return { rows: [], error: err.message };
+      }
+    };
 
     const [
       summaryRes,
@@ -1952,130 +1965,31 @@ async function handleApi(req, res, urlObj) {
       chefPerfRes,
       customerStatsRes
     ] = await Promise.all([
-      pool.query(
-        `SELECT
-          COUNT(*)::int AS orders,
-          COALESCE(SUM(total),0)::int AS revenue,
-          COALESCE(ROUND(AVG(total))::int, 0) AS aov,
-          COUNT(*) FILTER (WHERE status = 'Delivered')::int AS delivered,
-          COUNT(*) FILTER (WHERE status = 'Cancelled')::int AS cancelled
-         FROM orders
-         ${whereSql}`,
-        params
-      ),
-      pool.query(
-        `SELECT status, COUNT(*)::int AS count
-         FROM orders
-         ${whereSql}
-         GROUP BY status
-         ORDER BY count DESC`,
-        params
-      ),
-      pool.query(
-        `SELECT payment_mode AS mode, COUNT(*)::int AS count
-         FROM orders
-         ${whereSql}
-         GROUP BY payment_mode
-         ORDER BY count DESC`,
-        params
-      ),
-      pool.query(
-        `SELECT EXTRACT(HOUR FROM created_at)::int AS hour, COUNT(*)::int AS count
-         FROM orders
-         ${whereSql}
-         GROUP BY hour
-         ORDER BY hour ASC`,
-        params
-      ),
-      pool.query(
-        `SELECT
-          oi.item_name AS name,
-          SUM(oi.quantity)::int AS qty,
-          SUM(oi.quantity * oi.item_price)::int AS revenue
-         FROM order_items oi
-         JOIN orders o ON o.id = oi.order_id
-         ${where.length ? `WHERE ${where.map((w) => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
-         GROUP BY oi.item_name
-         ORDER BY qty DESC, revenue DESC
-         LIMIT 20`,
-        params
-      ),
-      pool.query(
-        `SELECT
-          o.customer_phone AS phone,
-          MIN(o.customer_name) AS name,
-          COUNT(*)::int AS orders,
-          COALESCE(SUM(o.total),0)::int AS spend
-         FROM orders o
-         ${where.length ? `WHERE ${where.map((w) => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
-         GROUP BY o.customer_phone
-         ORDER BY orders DESC, spend DESC
-         LIMIT 20`,
-        params
-      ),
-      pool.query(
-        `SELECT COUNT(*)::int AS pendingPayments
-         FROM orders
-         ${whereSql}
-         AND LOWER(payment_status) IN ('pending','verification pending')`,
-        params
-      ).catch(async () => {
-        const w = whereSql ? `${whereSql} AND` : "WHERE";
-        const sql = `SELECT COUNT(*)::int AS pendingPayments FROM orders ${w} LOWER(payment_status) IN ('pending','verification pending')`;
-        return await pool.query(sql, params);
-      }),
-      // Trends (Dynamic Grouping)
-      pool.query(
-        (() => {
-          const g = String(req.query.groupBy || "day").toLowerCase();
+      q(`SELECT COUNT(*)::int AS orders, COALESCE(SUM(total),0)::int AS revenue, COALESCE(ROUND(AVG(total))::int, 0) AS aov,
+                COUNT(*) FILTER (WHERE status = 'Delivered')::int AS delivered,
+                COUNT(*) FILTER (WHERE status = 'Cancelled')::int AS cancelled
+         FROM orders ${whereSql}`, params),
+      q(`SELECT status, COUNT(*)::int AS count FROM orders ${whereSql} GROUP BY status ORDER BY count DESC`, params),
+      q(`SELECT payment_mode AS mode, COUNT(*)::int AS count FROM orders ${whereSql} GROUP BY payment_mode ORDER BY count DESC`, params),
+      q(`SELECT EXTRACT(HOUR FROM created_at)::int AS hour, COUNT(*)::int AS count FROM orders ${whereSql} GROUP BY hour ORDER BY hour ASC`, params),
+      q(`SELECT oi.item_name AS name, SUM(oi.quantity)::int AS qty, SUM(oi.quantity * oi.item_price)::int AS revenue
+         FROM order_items oi JOIN orders o ON o.id = oi.order_id ${whereSqlO} GROUP BY 1 ORDER BY 2 DESC LIMIT 20`, params),
+      q(`SELECT o.customer_phone AS phone, MIN(o.customer_name) AS name, COUNT(*)::int AS orders, SUM(o.total)::int AS spend
+         FROM orders o ${whereSqlO} GROUP BY 1 ORDER BY 3 DESC LIMIT 20`, params),
+      q(`SELECT COUNT(*)::int AS pendingPayments FROM orders ${whereSql} AND LOWER(payment_status) IN ('pending','verification pending')`, params),
+      q((() => {
           let groupSql = "DATE(created_at)";
-          if (g === "hour") groupSql = "DATE_TRUNC('hour', created_at)";
-          if (g === "week") groupSql = "DATE_TRUNC('week', created_at)";
-          if (g === "month") groupSql = "DATE_TRUNC('month', created_at)";
-          
-          return `SELECT ${groupSql} AS date, SUM(total)::int AS revenue, COUNT(*)::int AS count
-                  FROM orders
-                  ${whereSql}
-                  GROUP BY 1
-                  ORDER BY 1 ASC`;
-        })(),
-        params
-      ),
-      // Category Distribution
-      pool.query(
-        `SELECT mi.category, SUM(oi.quantity)::int AS qty
-         FROM order_items oi
-         JOIN menu_items mi ON mi.id = oi.item_id
-         JOIN orders o ON o.id = oi.order_id
-         ${where.length ? `WHERE ${where.map((w) => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
-         GROUP BY mi.category
-         ORDER BY qty DESC`,
-        params
-      ),
-      // Chef Performance (Include all chefs, even with 0 items in range)
-      pool.query(
-        `SELECT c.name, COUNT(oia.item_id)::int AS items_handled
-         FROM chefs c
-         LEFT JOIN order_item_assignments oia ON oia.chef_id = c.id
-         LEFT JOIN orders o ON o.id = oia.order_id 
-           ${where.length ? `AND ${where.map((w) => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
-         GROUP BY c.name
-         ORDER BY items_handled DESC`,
-        params
-      ),
-      // Customer Stats (Filtered by range)
-      pool.query(
-        `SELECT
-           COUNT(*) FILTER (WHERE order_count = 1)::int AS new_customers,
-           COUNT(*) FILTER (WHERE order_count > 1)::int AS returning_customers
-         FROM (
-           SELECT customer_phone, COUNT(*) AS order_count
-           FROM orders
-           ${whereSql}
-           GROUP BY customer_phone
-         ) t`,
-        params
-      )
+          if (groupByParam === "hour") groupSql = "DATE_TRUNC('hour', created_at)";
+          if (groupByParam === "week") groupSql = "DATE_TRUNC('week', created_at)";
+          if (groupByParam === "month") groupSql = "DATE_TRUNC('month', created_at)";
+          return `SELECT ${groupSql} AS date, SUM(total)::int AS revenue, COUNT(*)::int AS count FROM orders ${whereSql} GROUP BY 1 ORDER BY 1 ASC`;
+        })(), params),
+      q(`SELECT mi.category, SUM(oi.quantity)::int AS qty FROM order_items oi JOIN menu_items mi ON mi.id = oi.item_id JOIN orders o ON o.id = oi.order_id ${whereSqlO} GROUP BY 1 ORDER BY 2 DESC`, params),
+      q(`SELECT c.name, COUNT(oia.item_id)::int AS items_handled FROM chefs c LEFT JOIN order_item_assignments oia ON oia.chef_id = c.id
+         LEFT JOIN orders o ON o.id = oia.order_id ${where.length ? `AND ${where.map(w => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
+         GROUP BY 1 ORDER BY 2 DESC`, params),
+      q(`SELECT COUNT(*) FILTER (WHERE order_count = 1)::int AS new_customers, COUNT(*) FILTER (WHERE order_count > 1)::int AS returning_customers
+         FROM (SELECT customer_phone, COUNT(*) AS order_count FROM orders ${whereSql} GROUP BY customer_phone) t`, params)
     ]);
 
     const summary = summaryRes.rows[0] || {};
@@ -2084,7 +1998,7 @@ async function handleApi(req, res, urlObj) {
     return sendJson(res, 200, {
       ok: true,
       range: { from: from ? from.toISOString() : "", to: to ? to.toISOString() : "" },
-      groupBy: String(req.query.groupBy || "day").toLowerCase(),
+      groupBy: groupByParam,
       summary: { ...summary, pendingPayments },
       statuses: statusRes.rows || [],
       paymentModes: paymentModeRes.rows || [],
@@ -2094,7 +2008,11 @@ async function handleApi(req, res, urlObj) {
       dailyTrends: dailyTrendsRes.rows || [],
       categoryDist: categoryDistRes.rows || [],
       chefPerf: chefPerfRes.rows || [],
-      customerStats: customerStatsRes.rows[0] || {}
+      customerStats: customerStatsRes.rows[0] || {},
+      errors: [
+        summaryRes.error, statusRes.error, hourlyRes.error, topItemsRes.error, 
+        dailyTrendsRes.error, categoryDistRes.error, chefPerfRes.error, customerStatsRes.error
+      ].filter(Boolean)
     });
   }
 

@@ -1055,6 +1055,14 @@ export function AdminApp() {
               <p>No analytics data loaded yet.</p>
             ) : (
               <>
+                {analytics.errors && analytics.errors.length > 0 && (
+                  <div style={{ background: '#fee2e2', border: '1px solid #fecaca', padding: '1rem', borderRadius: '12px', marginTop: '1rem', color: '#b91c1c', fontSize: '0.9rem' }}>
+                    <strong>Warning: Some data couldn't be loaded:</strong>
+                    <ul style={{ margin: '0.5rem 0 0 1.2rem', padding: 0 }}>
+                      {analytics.errors.map((err, i) => <li key={i}>{err}</li>)}
+                    </ul>
+                  </div>
+                )}
                 <div className="kpi-grid" style={{ marginTop: "0.7rem" }}>
                   <Kpi title="Total Orders" value={analytics.summary?.orders || 0} />
                   <Kpi title="Total Revenue" value={`Rs ${analytics.summary?.revenue || 0}`} />
