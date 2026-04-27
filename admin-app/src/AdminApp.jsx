@@ -91,6 +91,7 @@ export function AdminApp() {
   const [analyticsFrom, setAnalyticsFrom] = useState("");
   const [analyticsTo, setAnalyticsTo] = useState("");
   const [analytics, setAnalytics] = useState(null);
+  const [trendGroup, setTrendGroup] = useState("day");
 
   const onDutyChefs = useMemo(() => chefs.filter((c) => c.isOnDuty), [chefs]);
   const activeChefs = useMemo(() => chefs.filter((c) => c.isActive !== false), [chefs]);
@@ -283,6 +284,15 @@ export function AdminApp() {
       const q = new URLSearchParams();
       if (range?.from) q.set("from", range.from.toISOString());
       if (range?.to) q.set("to", range.to.toISOString());
+
+      // Auto-detect granularity
+      let actualGroup = trendGroup;
+      if (range?.from && range?.to) {
+        const diff = Math.abs(range.to - range.from) / (1000 * 60 * 60 * 24);
+        if (diff <= 1.1 && trendGroup === "day") actualGroup = "hour";
+      }
+      q.set("groupBy", actualGroup);
+
       const data = await api(`/api/admin/analytics?${q.toString()}`);
       setAnalytics(data);
       setNotice("Analytics updated.");
@@ -998,12 +1008,17 @@ export function AdminApp() {
 
         {view === VIEWS.ANALYTICS ? (
           <section className="section" id="analytics">
-            <div className="section-head">
-              <div>
-                <p className="kicker">Insights</p>
-                <h2>Analytics</h2>
+            <div className="section-head" style={{ marginBottom: '1.5rem', background: '#fff', padding: '1rem', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', position: 'sticky', top: '1rem', zIndex: 100 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ background: 'var(--accent)', color: '#fff', padding: '0.8rem', borderRadius: '12px' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Analytics Dashboard</h2>
+                  <p className="kicker" style={{ marginTop: '0.2rem' }}>Performance Overview</p>
+                </div>
               </div>
-              <div className="order-filters">
+              <div className="order-filters" style={{ flex: 1, justifyContent: 'flex-end', gap: '0.8rem' }}>
                 <CustomSelect 
                   value={analyticsPreset} 
                   onChange={(e) => setAnalyticsPreset(e.target.value)} 
@@ -1014,25 +1029,24 @@ export function AdminApp() {
                     { label: "Custom range", value: "custom" }
                   ]}
                 />
-                <input
-                  type="date"
-                  value={analyticsFrom}
-                  onChange={(e) => setAnalyticsFrom(e.target.value)}
-                  disabled={analyticsPreset !== "custom"}
-                  title="From date"
-                />
-                <input
-                  type="date"
-                  value={analyticsTo}
-                  onChange={(e) => setAnalyticsTo(e.target.value)}
-                  disabled={analyticsPreset !== "custom"}
-                  title="To date"
-                />
-                <button className="btn subtle" type="button" onClick={loadAnalytics}>
-                  Refresh
-                </button>
-                <button className="btn subtle" type="button" onClick={() => setView(VIEWS.TODAY)}>
-                  Back to today
+                {analyticsPreset === 'custom' && (
+                  <>
+                    <input
+                      type="date"
+                      value={analyticsFrom}
+                      onChange={(e) => setAnalyticsFrom(e.target.value)}
+                      title="From date"
+                    />
+                    <input
+                      type="date"
+                      value={analyticsTo}
+                      onChange={(e) => setAnalyticsTo(e.target.value)}
+                      title="To date"
+                    />
+                  </>
+                )}
+                <button className="btn" type="button" onClick={loadAnalytics} style={{ padding: '0.6rem 1.2rem' }}>
+                  Apply Filters
                 </button>
               </div>
             </div>
@@ -1043,7 +1057,7 @@ export function AdminApp() {
               <>
                 <div className="kpi-grid" style={{ marginTop: "0.7rem" }}>
                   <Kpi title="Total Orders" value={analytics.summary?.orders || 0} />
-                  <Kpi title="Revenue" value={`Rs ${analytics.summary?.revenue || 0}`} />
+                  <Kpi title="Total Revenue" value={`Rs ${analytics.summary?.revenue || 0}`} />
                   <Kpi title="Avg Order Value" value={`Rs ${analytics.summary?.aov || 0}`} />
                   <Kpi title="Delivered" value={analytics.summary?.delivered || 0} />
                   <Kpi title="Cancelled" value={analytics.summary?.cancelled || 0} />
@@ -1052,15 +1066,51 @@ export function AdminApp() {
 
                 {/* Main Trend Chart */}
                 <div style={{ marginTop: "1.2rem" }}>
-                  <ChartCard title="Revenue Trend" subtitle="Daily revenue tracking">
+                  <ChartCard 
+                    title="Revenue Trend" 
+                    subtitle="Track growth over time"
+                    extra={(
+                      <div className="order-filters" style={{ border: 'none', padding: 0 }}>
+                        <select 
+                          className="subtle-select"
+                          value={trendGroup} 
+                          onChange={(e) => {
+                            setTrendGroup(e.target.value);
+                            // We need to re-load with the new granularity
+                            setTimeout(loadAnalytics, 10);
+                          }}
+                          style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem', borderRadius: '8px', border: '1px solid var(--line)' }}
+                        >
+                          <option value="hour">Hourly</option>
+                          <option value="day">Daily</option>
+                          <option value="week">Weekly</option>
+                          <option value="month">Monthly</option>
+                        </select>
+                      </div>
+                    )}
+                  >
                     <LineChart 
                       color="#3b82f6"
-                      data={(analytics.dailyTrends || []).map(d => ({
-                        label: new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
-                        value: d.revenue
-                      }))} 
+                      data={!analytics.dailyTrends?.length ? [] : analytics.dailyTrends.map(d => {
+                        const date = new Date(d.date);
+                        const group = analytics.groupBy || trendGroup;
+                        let label = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+                        if (group === 'hour') {
+                          label = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                        } else if (group === 'week') {
+                          label = `Week of ${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`;
+                        } else if (group === 'month') {
+                          label = date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+                        }
+                        return { label, value: d.revenue };
+                      })} 
                       valueSuffix=" Rs"
                     />
+                    {!analytics.dailyTrends?.length && (
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--muted)', fontSize: '0.9rem' }}>
+                        No trend data for this period.
+                      </div>
+                    )}
                   </ChartCard>
                 </div>
 
@@ -1487,14 +1537,15 @@ function isWithinRange(value, range) {
   }
 }
 
-function ChartCard({ title, subtitle, children }) {
+function ChartCard({ title, subtitle, extra, children }) {
   return (
-    <article className="chart-card">
-      <div className="chart-head">
+    <article className="chart-card" style={{ position: 'relative' }}>
+      <div className="chart-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h3 style={{ margin: 0 }}>{title}</h3>
           {subtitle ? <p className="chart-subtitle">{subtitle}</p> : null}
         </div>
+        {extra && <div className="chart-extra">{extra}</div>}
       </div>
       <div className="chart-body">{children}</div>
     </article>
@@ -1643,7 +1694,7 @@ function HorizontalBarChart({ data, valueSuffix = "", maxLabelChars = 20 }) {
     </div>
   );
 }
-function LineChart({ data, valueSuffix = "", color = "#ef4444" }) {
+function LineChart({ data, valueSuffix = "", color = "#3b82f6" }) {
   const [tip, setTip] = useState(null);
   const vals = (data || []).map(d => Number(d.value || 0));
   const max = Math.max(1, ...vals);
@@ -1678,24 +1729,34 @@ function LineChart({ data, valueSuffix = "", color = "#ef4444" }) {
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
-        <path d={areaD} className="chart-area" />
-        <path d={pathD} className="chart-line" style={{ stroke: color }} />
-        {points.map((p, i) => (
-          <circle 
-            key={i} 
-            cx={p.x} 
-            cy={p.y} 
-            r="5" 
-            className="chart-dot" 
-            style={{ stroke: color }}
-            onMouseMove={(e) => {
-              const rect = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
-              const px = rect ? e.clientX - rect.left : 0;
-              const py = rect ? e.clientY - rect.top : 0;
-              setTip({ x: px, y: py - 40, title: p.label, value: `${p.value}${valueSuffix}` });
-            }}
-          />
-        ))}
+        <path d={areaD} fill="url(#chartGradient)" className="chart-area" />
+        <path d={pathD} className="chart-line" style={{ stroke: color, fill: 'none', strokeWidth: 4, strokeLinejoin: 'round', strokeLinecap: 'round' }} />
+        {points.map((p, i) => {
+          // Show label if it's the first, last, or one of the middle points (skip some for readability)
+          const shouldShowLabel = points.length > 10 ? (i % Math.ceil(points.length / 8) === 0) : true;
+          return (
+            <g key={i}>
+              <circle 
+                cx={p.x} 
+                cy={p.y} 
+                r="6" 
+                className="chart-dot" 
+                style={{ stroke: color, fill: '#fff', strokeWidth: 3 }}
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.ownerSVGElement?.getBoundingClientRect();
+                  const px = rect ? e.clientX - rect.left : 0;
+                  const py = rect ? e.clientY - rect.top : 0;
+                  setTip({ x: px, y: py - 40, title: p.label, value: `${p.value}${valueSuffix}` });
+                }}
+              />
+              {shouldShowLabel && (
+                <text x={p.x} y={height - 5} textAnchor="middle" className="chart-label" style={{ fontSize: '14px' }}>
+                  {p.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );

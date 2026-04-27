@@ -2024,38 +2024,46 @@ async function handleApi(req, res, urlObj) {
         const sql = `SELECT COUNT(*)::int AS pendingPayments FROM orders ${w} LOWER(payment_status) IN ('pending','verification pending')`;
         return await pool.query(sql, params);
       }),
-      // Daily Trends
+      // Trends (Dynamic Grouping)
       pool.query(
-        `SELECT DATE(created_at) AS date, SUM(total)::int AS revenue, COUNT(*)::int AS count
-         FROM orders
-         ${whereSql}
-         GROUP BY date
-         ORDER BY date ASC`,
+        (() => {
+          const g = String(req.query.groupBy || "day").toLowerCase();
+          let groupSql = "DATE(created_at)";
+          if (g === "hour") groupSql = "DATE_TRUNC('hour', created_at)";
+          if (g === "week") groupSql = "DATE_TRUNC('week', created_at)";
+          if (g === "month") groupSql = "DATE_TRUNC('month', created_at)";
+          
+          return `SELECT ${groupSql} AS date, SUM(total)::int AS revenue, COUNT(*)::int AS count
+                  FROM orders
+                  ${whereSql}
+                  GROUP BY 1
+                  ORDER BY 1 ASC`;
+        })(),
         params
       ),
       // Category Distribution
       pool.query(
         `SELECT mi.category, SUM(oi.quantity)::int AS qty
          FROM order_items oi
-         JOIN menu_items mi ON mi.name = oi.item_name
+         JOIN menu_items mi ON mi.id = oi.item_id
          JOIN orders o ON o.id = oi.order_id
          ${where.length ? `WHERE ${where.map((w) => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
          GROUP BY mi.category
          ORDER BY qty DESC`,
         params
       ),
-      // Chef Performance
+      // Chef Performance (Include all chefs, even with 0 items in range)
       pool.query(
         `SELECT c.name, COUNT(oia.item_id)::int AS items_handled
          FROM chefs c
          LEFT JOIN order_item_assignments oia ON oia.chef_id = c.id
-         LEFT JOIN orders o ON o.id = oia.order_id
-         ${where.length ? `WHERE ${where.map((w) => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
+         LEFT JOIN orders o ON o.id = oia.order_id 
+           ${where.length ? `AND ${where.map((w) => w.replace(/created_at/g, "o.created_at")).join(" AND ")}` : ""}
          GROUP BY c.name
          ORDER BY items_handled DESC`,
         params
       ),
-      // Customer Stats (Overall Retention)
+      // Customer Stats (Filtered by range)
       pool.query(
         `SELECT
            COUNT(*) FILTER (WHERE order_count = 1)::int AS new_customers,
@@ -2063,8 +2071,10 @@ async function handleApi(req, res, urlObj) {
          FROM (
            SELECT customer_phone, COUNT(*) AS order_count
            FROM orders
+           ${whereSql}
            GROUP BY customer_phone
-         ) t`
+         ) t`,
+        params
       )
     ]);
 
@@ -2074,6 +2084,7 @@ async function handleApi(req, res, urlObj) {
     return sendJson(res, 200, {
       ok: true,
       range: { from: from ? from.toISOString() : "", to: to ? to.toISOString() : "" },
+      groupBy: String(req.query.groupBy || "day").toLowerCase(),
       summary: { ...summary, pendingPayments },
       statuses: statusRes.rows || [],
       paymentModes: paymentModeRes.rows || [],
