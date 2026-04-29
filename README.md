@@ -130,11 +130,16 @@ The command center for kitchen managers, providing deep insights into operations
 
 ## 🛠️ Installation & Setup
 
-1. **Clone & Install**:
+### Prerequisites
+- **Node.js**: v18 or later
+- **Git**
 
+### Installation Steps
+
+1. **Clone the Repository**
    ```bash
-   git clone https://github.com/milansinghal2004/cloud-kitchen-management-dashboard.git
-   cd cloud-kitchen-management-dashboard
+   git clone https://github.com/milansinghal2004/cloud-kitchen-management-system.git
+   cd cloud-kitchen-management-system
    npm install
    ```
 
